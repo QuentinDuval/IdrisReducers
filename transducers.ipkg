@@ -1,0 +1,6 @@
+package transducers
+
+sourcedir = src
+
+modules = Transducers
+tests = Transducers.run_tests

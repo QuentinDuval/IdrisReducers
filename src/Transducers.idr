@@ -1,4 +1,4 @@
-module Reducers
+module Transducers
 
 
 --------------------------------------------------------------------------------
@@ -13,24 +13,28 @@ record Step st acc elem where
   complete : st -> acc -> acc
 
 public export
-Reducer : (acc: Type) -> (s1: Type) -> (s2: Type) -> (a: Type) -> (b: Type) -> Type
-Reducer acc s1 s2 a b = Step s1 acc a -> Step s2 acc b
+Transducer : (acc: Type) -> (s1: Type) -> (s2: Type) -> (a: Type) -> (b: Type) -> Type
+Transducer acc s1 s2 a b = Step s1 acc a -> Step s2 acc b
 
 
 -------------------------------------------------------------------------------
--- Helpers to build stateless steps and reducers
+-- Helpers to build stateless steps and Transducers
 --------------------------------------------------------------------------------
+
+export
+StatelessStep : (acc: Type) -> (elem: Type) -> Type
+StatelessStep acc elem = acc -> elem -> acc
 
 namespace StatelessStep
 
   export
-  stateless : (acc -> elem -> acc) -> Step () acc elem
+  stateless : StatelessStep acc elem -> Step () acc elem
   stateless fn = MkStep () (\_, acc, elem => ((), fn acc elem)) (const id)
 
-namespace StatelessReducer
+namespace StatelessTransducer
 
   export
-  stateless : (Step s acc inner -> s -> acc -> outer -> (s, acc)) -> Reducer acc s s inner outer
+  stateless : (Step s acc inner -> s -> acc -> outer -> (s, acc)) -> Transducer acc s s inner outer
   stateless xf step = MkStep (state step) (xf step) (complete step)
 
 
@@ -46,12 +50,12 @@ reduce : (Foldable t) => Step st acc elem -> acc -> t elem -> acc
 reduce step result = uncurry (complete step) . reduceImpl step (state step, result)
 
 export
-transduce : (Foldable t) => Reducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
+transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (stateless step))
 
 
 --------------------------------------------------------------------------------
--- Core (syntaxic sugar to compose reducers)
+-- Core (syntaxic sugar to compose Transducers)
 --------------------------------------------------------------------------------
 
 infixr 5 |>
@@ -61,33 +65,33 @@ infixr 5 |>
 
 
 --------------------------------------------------------------------------------
--- Basic reducers (stateless)
+-- Basic Transducers (stateless)
 --------------------------------------------------------------------------------
 
 export
-mapping : (outer -> inner) -> Reducer acc s s inner outer
+mapping : (outer -> inner) -> Transducer acc s s inner outer
 mapping fn = stateless $
   \step, st, acc, outer => next step st acc (fn outer)
 
 export
-filtering : (elem -> Bool) -> Reducer acc s s elem elem
+filtering : (elem -> Bool) -> Transducer acc s s elem elem
 filtering pf = stateless $
   \step, st, acc, elem => if pf elem then next step st acc elem else (st, acc)
 
 export
-catMapping : (Foldable t) => (outer -> t inner) -> Reducer acc s s inner outer
+catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
 catMapping fn = stateless $
   \step, st, acc, outer => reduceImpl step (st, acc) (fn outer)
 
 
 --------------------------------------------------------------------------------
--- Basic reducers (stateless)
+-- Basic Transducers (stateless)
 --------------------------------------------------------------------------------
 
 -- TODO: use take?
 
 export
-chunksOf : Nat -> Reducer acc s (List elem, s) (List elem) elem
+chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem
 chunksOf chunkSize step = MkStep ([], state step) nextChunk dumpRemaining
   where
     nextChunk (remaining, st) acc elem =

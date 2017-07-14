@@ -1,3 +1,3 @@
 #!/bin/sh
 
-idris --testpkg reducers.ipkg
+idris --testpkg transducers.ipkg

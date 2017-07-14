@@ -1,3 +1,3 @@
 #!/bin/sh
 
-idris --build reducers.ipkg
+idris --build transducers.ipkg

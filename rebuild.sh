@@ -1,4 +1,4 @@
 #!/bin/sh
 
-idris --clean reducers.ipkg
+idris --clean transducers.ipkg
 ./build.sh

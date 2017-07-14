@@ -1,39 +1,44 @@
 module Reducers
 
-%access export
-
 
 --------------------------------------------------------------------------------
--- Core library
+-- Core (definition of a step)
 --------------------------------------------------------------------------------
 
+public export
 record Step st acc elem where
   constructor MkStep
   state : st
   next : st -> acc -> elem -> (st, acc)
   complete : st -> acc -> acc
 
+public export
 Reducer : (acc: Type) -> (s1: Type) -> (s2: Type) -> (a: Type) -> (b: Type) -> Type
 Reducer acc s1 s2 a b = Step s1 acc a -> Step s2 acc b
 
--- StatelessReducer : (acc: Type) -> (a: Type) -> (b: Type) -> Type
--- StatelessReducer acc a b = forall s. Reducer acc s s a b
+export
+stateless : (acc -> elem -> acc) -> Step () acc elem
+stateless fn = MkStep () (\_, acc, elem => ((), fn acc elem)) (const id)
+
+
+--------------------------------------------------------------------------------
+-- Core (Reductions)
+--------------------------------------------------------------------------------
 
 reduceImpl : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> (st, acc)
 reduceImpl step = foldl (\(st, acc) => next step st acc)
 
+export
 reduce : (Foldable t) => Step st acc elem -> acc -> t elem -> acc
 reduce step result = uncurry (complete step) . reduceImpl step (state step, result)
 
-stateless : (acc -> elem -> acc) -> Step () acc elem
-stateless fn = MkStep () (\_, acc, elem => ((), fn acc elem)) (const id)
-
+export
 transduce : (Foldable t) => Reducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (stateless step))
 
 
 --------------------------------------------------------------------------------
--- Composition of steps (helpers)
+-- Core (syntaxic sugar to compose reducers)
 --------------------------------------------------------------------------------
 
 infixr 5 |>
@@ -44,22 +49,24 @@ namespace TransducerComp
 
 
 --------------------------------------------------------------------------------
--- Useful reducers
+-- Basic reducers (stateless)
 --------------------------------------------------------------------------------
 
+export
 mapping : (outer -> inner) -> Reducer acc s s inner outer
 mapping fn step = MkStep
   (state step)
   (\st, acc, outer => next step st acc (fn outer))
   (complete step)
 
-
+export
 filtering : (elem -> Bool) -> Reducer acc s s elem elem
 filtering pf step = MkStep
   (state step)
   (\st, acc, elem => if pf elem then next step st acc elem else (st, acc))
   (complete step)
 
+export
 catMapping : (Foldable t) => (outer -> t inner) -> Reducer acc s s inner outer
 catMapping fn step = MkStep
   (state step)
@@ -126,6 +133,7 @@ should_allow_pure_xf_composition =
     assertEq 50 (transduce xf (+) 0 [1..10])
     assertEq 30240 (transduce xf (*) 1 [1..10])
 
+export
 run_tests : IO ()
 run_tests = do
   should_map [1..100]

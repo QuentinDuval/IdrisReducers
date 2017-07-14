@@ -16,9 +16,22 @@ public export
 Reducer : (acc: Type) -> (s1: Type) -> (s2: Type) -> (a: Type) -> (b: Type) -> Type
 Reducer acc s1 s2 a b = Step s1 acc a -> Step s2 acc b
 
-export
-stateless : (acc -> elem -> acc) -> Step () acc elem
-stateless fn = MkStep () (\_, acc, elem => ((), fn acc elem)) (const id)
+
+-------------------------------------------------------------------------------
+-- Helpers to build stateless steps and reducers
+--------------------------------------------------------------------------------
+
+namespace StatelessStep
+
+  export
+  stateless : (acc -> elem -> acc) -> Step () acc elem
+  stateless fn = MkStep () (\_, acc, elem => ((), fn acc elem)) (const id)
+
+namespace StatelessReducer
+
+  export
+  stateless : (Step s acc inner -> s -> acc -> outer -> (s, acc)) -> Reducer acc s s inner outer
+  stateless xf step = MkStep (state step) (xf step) (complete step)
 
 
 --------------------------------------------------------------------------------
@@ -43,9 +56,8 @@ transduce xf step = reduce (xf (stateless step))
 
 infixr 5 |>
 
-namespace TransducerComp
-  (|>) : (b -> c) -> (a -> b) -> (a -> c)
-  (|>) r2 r1 = r2 . r1
+(|>) : (b -> c) -> (a -> b) -> (a -> c)
+(|>) r2 r1 = r2 . r1
 
 
 --------------------------------------------------------------------------------
@@ -54,24 +66,18 @@ namespace TransducerComp
 
 export
 mapping : (outer -> inner) -> Reducer acc s s inner outer
-mapping fn step = MkStep
-  (state step)
-  (\st, acc, outer => next step st acc (fn outer))
-  (complete step)
+mapping fn = stateless $
+  \step, st, acc, outer => next step st acc (fn outer)
 
 export
 filtering : (elem -> Bool) -> Reducer acc s s elem elem
-filtering pf step = MkStep
-  (state step)
-  (\st, acc, elem => if pf elem then next step st acc elem else (st, acc))
-  (complete step)
+filtering pf = stateless $
+  \step, st, acc, elem => if pf elem then next step st acc elem else (st, acc)
 
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Reducer acc s s inner outer
-catMapping fn step = MkStep
-  (state step)
-  (\st, acc, outer => let inners = fn outer in reduceImpl step (st, acc) inners)
-  (complete step)
+catMapping fn = stateless $
+  \step, st, acc, outer => reduceImpl step (st, acc) (fn outer)
 
 
 --------------------------------------------------------------------------------

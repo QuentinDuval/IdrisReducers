@@ -21,7 +21,7 @@ record Reducer st acc elem where
   complete : st -> acc -> acc
 
 public export
-Transducer : (acc: Type) -> (s1: Type) -> (s2: Type) -> (inner: Type) -> (outer: Type) -> Type
+Transducer : (acc: Type) -> (s1, s2: Type) -> (inner, outer: Type) -> Type
 Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
 
 

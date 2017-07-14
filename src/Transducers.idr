@@ -5,6 +5,8 @@ module Transducers
 -- Core (definition of a step)
 --------------------------------------------------------------------------------
 
+-- TODO: add reduced?
+
 export
 StatelessStep : (acc: Type) -> (elem: Type) -> Type
 StatelessStep acc elem = acc -> elem -> acc

@@ -38,7 +38,7 @@ catMapping fn step = \acc, outer => let inners = fn outer in foldl step acc inne
 
 
 --------------------------------------------------------------------------------
--- Some tests
+-- Unit tests
 --------------------------------------------------------------------------------
 
 assertThat : Bool -> String -> IO ()
@@ -51,6 +51,12 @@ assertEq e g =
   assertThat (g == e) $
     "Expected == " ++ show e ++ ", Got: " ++ show g
 
+odd : Int -> Bool
+odd n = mod n 2 == 0
+
+twice : Int -> List Int
+twice = replicate 2
+
 mapping_should_do_as_map : List Int -> IO ()
 mapping_should_do_as_map input =
   assertEq
@@ -62,20 +68,22 @@ filtering_should_do_as_filter input =
   assertEq
     (foldl (+) 0 (filter odd input))
     (foldl (filtering odd (+)) 0 input)
-  where
-    odd n = mod n 2 == 0
 
 catmapping_should_do_as_concatMap : List Int -> IO ()
 catmapping_should_do_as_concatMap input =
   assertEq
     (foldl (+) 0 (concatMap twice input))
     (foldl (catMapping twice (+)) 0 input)
-  where
-    twice : Int -> List Int
-    twice = replicate 2
+
+reducers_composition_is_reversed : List Int -> IO ()
+reducers_composition_is_reversed input =
+  assertEq
+    (foldl (+) 0 (map (+1) (concatMap twice (filter odd input))))
+    (foldl (filtering odd |> catMapping twice |> mapping (+1) |> (+)) 0 input)
 
 run_tests : IO ()
 run_tests = do
-  mapping_should_do_as_map [1..10]
-  filtering_should_do_as_filter [1..10]
-  catmapping_should_do_as_concatMap [1..10]
+  mapping_should_do_as_map [1..100]
+  filtering_should_do_as_filter [1..100]
+  catmapping_should_do_as_concatMap [1..100]
+  reducers_composition_is_reversed [1..100]

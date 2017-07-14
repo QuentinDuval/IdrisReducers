@@ -59,26 +59,26 @@ odd n = mod n 2 == 1
 twice : Int -> List Int
 twice = replicate 2
 
-mapping_should_do_as_map : List Int -> IO ()
-mapping_should_do_as_map input =
+should_map : List Int -> IO ()
+should_map input =
   assertEq
     (foldl (+) 0 (map (*2) input))
     (foldl (mapping (*2) (+)) 0 input)
 
-filtering_should_do_as_filter : List Int -> IO ()
-filtering_should_do_as_filter input =
+should_filter : List Int -> IO ()
+should_filter input =
   assertEq
     (foldl (+) 0 (filter odd input))
     (foldl (filtering odd (+)) 0 input)
 
-catmapping_should_do_as_concatMap : List Int -> IO ()
-catmapping_should_do_as_concatMap input =
+should_concat_map : List Int -> IO ()
+should_concat_map input =
   assertEq
     (foldl (+) 0 (concatMap twice input))
     (foldl (catMapping twice (+)) 0 input)
 
-reducers_composition_is_reversed : List Int -> IO ()
-reducers_composition_is_reversed input =
+should_pipe_from_left_to_right : List Int -> IO ()
+should_pipe_from_left_to_right input =
   let expected = foldl (+) 0 (map (+1) (concatMap twice (filter odd input)))
   in do
     assertEq expected $
@@ -86,8 +86,8 @@ reducers_composition_is_reversed input =
     assertEq expected $
       foldl (filtering odd |> catMapping twice |> mapping (+1) (+)) 0 input
 
-reducers_should_work_with_foldr : List Int -> IO ()
-reducers_should_work_with_foldr input =
+should_work_with_foldr : List Int -> IO ()
+should_work_with_foldr input =
   assertEq
     (foldr (::) [] (map (+1) (filter odd input)))
     (foldr (flip (filtering odd |> mapping (+1) |> flip (::))) [] input)
@@ -101,9 +101,9 @@ should_allow_pure_xf_composition =
 
 run_tests : IO ()
 run_tests = do
-  mapping_should_do_as_map [1..100]
-  filtering_should_do_as_filter [1..100]
-  catmapping_should_do_as_concatMap [1..100]
-  reducers_composition_is_reversed [1..100]
-  reducers_should_work_with_foldr [1..100]
+  should_map [1..100]
+  should_filter [1..100]
+  should_concat_map [1..100]
+  should_pipe_from_left_to_right [1..100]
+  should_work_with_foldr [1..100]
   should_allow_pure_xf_composition

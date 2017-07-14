@@ -77,9 +77,12 @@ catmapping_should_do_as_concatMap input =
 
 reducers_composition_is_reversed : List Int -> IO ()
 reducers_composition_is_reversed input =
-  assertEq
-    (foldl (+) 0 (map (+1) (concatMap twice (filter odd input))))
-    (foldl (filtering odd |> catMapping twice |> mapping (+1) |> (+)) 0 input)
+  let expected = foldl (+) 0 (map (+1) (concatMap twice (filter odd input)))
+  in do
+    assertEq expected $
+      foldl (filtering odd |> catMapping twice |> mapping (+1) |> (+)) 0 input
+    assertEq expected $
+      foldl (filtering odd |> catMapping twice |> mapping (+1) (+)) 0 input
 
 run_tests : IO ()
 run_tests = do

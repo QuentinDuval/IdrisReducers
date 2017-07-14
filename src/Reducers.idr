@@ -49,17 +49,6 @@ export
 transduce : (Foldable t) => Reducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (stateless step))
 
--- reduceImplR : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> (st, acc)
--- reduceImplR step = foldr (\elem, (st, acc) => next step st acc elem)
-
--- export
--- reduceR : (Foldable t) => Step st acc elem -> acc -> t elem -> acc
--- reduceR step result = uncurry (complete step) . reduceImplR step (state step, result)
-
--- export
--- transduceR : (Foldable t) => Reducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
--- transduceR xf step = reduceR (xf (stateless step))
-
 
 --------------------------------------------------------------------------------
 -- Core (syntaxic sugar to compose reducers)
@@ -176,8 +165,10 @@ should_allow_pure_xf_composition =
 
 should_chunk_of : IO ()
 should_chunk_of = do
-  let xs = [1..10]
-  assertEq [[9, 10], [5..8], [1..4]] (transduce (chunksOf 4) (flip (::)) [] xs)
+  let xf = chunksOf 4 . mapping pack . mapping (++ " ")
+  assertEq "abcd efgh ijkl " (transduce xf (++) "" ['a'..'l'])
+  assertEq "abcd efgh ij " (transduce xf (++) "" ['a'..'j'])
+
 
 export
 run_tests : IO ()

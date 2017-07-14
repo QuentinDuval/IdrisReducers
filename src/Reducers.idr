@@ -14,13 +14,8 @@ ReducerL acc a b = StepL acc a -> StepL acc b
 
 infixr 5 |>
 
-namespace Reducer
-  (|>) : ReducerL acc b c -> ReducerL acc a b -> ReducerL acc a c
-  (|>) r2 r1 = r2 . r1
-
-namespace Terminal
-  (|>) : ReducerL acc inner outer -> StepL acc inner -> StepL acc outer
-  (|>) r step = r step
+(|>) : ReducerL acc inner outer -> StepL acc inner -> StepL acc outer
+(|>) r step = r step
 
 
 --------------------------------------------------------------------------------

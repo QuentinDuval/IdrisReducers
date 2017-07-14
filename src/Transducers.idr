@@ -5,48 +5,52 @@ module Transducers
 -- Core (definition of a step)
 --------------------------------------------------------------------------------
 
-public export
-record Step st acc elem where
-  constructor MkStep
-  state : st
-  next : st -> acc -> elem -> (st, acc)
-  complete : st -> acc -> acc
-
-public export
-Transducer : (acc: Type) -> (s1: Type) -> (s2: Type) -> (a: Type) -> (b: Type) -> Type
-Transducer acc s1 s2 a b = Step s1 acc a -> Step s2 acc b
-
-
--------------------------------------------------------------------------------
--- Helpers to build stateless steps and Transducers
---------------------------------------------------------------------------------
-
 export
 StatelessStep : (acc: Type) -> (elem: Type) -> Type
 StatelessStep acc elem = acc -> elem -> acc
 
+export
+Step : (state: Type) -> (acc: Type) -> (elem: Type) -> Type
+Step state acc elem = state -> acc -> elem -> (state, acc)
+
+public export
+record Reducer st acc elem where
+  constructor MkReducer
+  state : st
+  next : Step st acc elem
+  complete : st -> acc -> acc
+
+public export
+Transducer : (acc: Type) -> (s1: Type) -> (s2: Type) -> (inner: Type) -> (outer: Type) -> Type
+Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
+
+
+-------------------------------------------------------------------------------
+-- Helpers to build stateless Reducers and Transducers
+--------------------------------------------------------------------------------
+
 namespace StatelessStep
 
   export
-  stateless : StatelessStep acc elem -> Step () acc elem
-  stateless fn = MkStep () (\_, acc, elem => ((), fn acc elem)) (const id)
+  stateless : StatelessStep acc elem -> Reducer () acc elem
+  stateless fn = MkReducer () (\_, acc, elem => ((), fn acc elem)) (const id)
 
 namespace StatelessTransducer
 
   export
-  stateless : (Step s acc inner -> s -> acc -> outer -> (s, acc)) -> Transducer acc s s inner outer
-  stateless xf step = MkStep (state step) (xf step) (complete step)
+  stateless : (Reducer s acc inner -> Step s acc outer) -> Transducer acc s s inner outer
+  stateless transducer xf = MkReducer (state xf) (transducer xf) (complete xf)
 
 
 --------------------------------------------------------------------------------
 -- Core (Reductions)
 --------------------------------------------------------------------------------
 
-reduceImpl : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> (st, acc)
+reduceImpl : (Foldable t) => Reducer st acc elem -> (st, acc) -> t elem -> (st, acc)
 reduceImpl step = foldl (\(st, acc) => next step st acc)
 
 export
-reduce : (Foldable t) => Step st acc elem -> acc -> t elem -> acc
+reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc
 reduce step result = uncurry (complete step) . reduceImpl step (state step, result)
 
 export
@@ -71,17 +75,17 @@ infixr 5 |>
 export
 mapping : (outer -> inner) -> Transducer acc s s inner outer
 mapping fn = stateless $
-  \step, st, acc, outer => next step st acc (fn outer)
+  \xf, st, acc, outer => next xf st acc (fn outer)
 
 export
 filtering : (elem -> Bool) -> Transducer acc s s elem elem
 filtering pf = stateless $
-  \step, st, acc, elem => if pf elem then next step st acc elem else (st, acc)
+  \xf, st, acc, elem => if pf elem then next xf st acc elem else (st, acc)
 
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
 catMapping fn = stateless $
-  \step, st, acc, outer => reduceImpl step (st, acc) (fn outer)
+  \xf, st, acc, outer => reduceImpl xf (st, acc) (fn outer)
 
 
 --------------------------------------------------------------------------------
@@ -92,20 +96,20 @@ catMapping fn = stateless $
 
 export
 chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem
-chunksOf chunkSize step = MkStep ([], state step) nextChunk dumpRemaining
+chunksOf chunkSize xf = MkReducer ([], state xf) nextChunk dumpRemaining
   where
     nextChunk (remaining, st) acc elem =
       let remaining' = elem :: remaining in
       if length remaining' == chunkSize
-        then let (st, acc) = next step st acc (reverse remaining')
+        then let (st, acc) = next xf st acc (reverse remaining')
              in (([], st), acc)
         else ((remaining', st), acc)
     dumpRemaining (remaining, st) acc =
       let (st', acc') =
             if length remaining == 0
               then (st, acc)
-              else next step st acc (reverse remaining)
-      in complete step st' acc'
+              else next xf st acc (reverse remaining)
+      in complete xf st' acc'
 
 
 --------------------------------------------------------------------------------

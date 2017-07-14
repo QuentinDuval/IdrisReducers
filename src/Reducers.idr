@@ -6,22 +6,22 @@ module Reducers
 -- Core library
 --------------------------------------------------------------------------------
 
-StepL : (acc: Type) -> (elem: Type) -> Type
-StepL acc elem = acc -> elem -> acc
+StatelessStep : (acc: Type) -> (elem: Type) -> Type
+StatelessStep acc elem = acc -> elem -> acc
 
-ReducerL : (acc: Type) -> (a: Type) -> (b: Type) -> Type
-ReducerL acc a b = StepL acc a -> StepL acc b
+StatelessReducer : (acc: Type) -> (a: Type) -> (b: Type) -> Type
+StatelessReducer acc a b = StatelessStep acc a -> StatelessStep acc b
 
 infixr 5 |>
 
 -- Automatically used inside a foldl / foldr, with the terminal element
 namespace Reducer
-  (|>) : ReducerL acc inner outer -> StepL acc inner -> StepL acc outer
+  (|>) : StatelessReducer acc inner outer -> StatelessStep acc inner -> StatelessStep acc outer
   (|>) r step = r step
 
 -- Only used when piping transformation without terminal element
 namespace Transducer
-  (|>) : ReducerL acc b c -> ReducerL acc a b -> ReducerL acc a c
+  (|>) : StatelessReducer acc b c -> StatelessReducer acc a b -> StatelessReducer acc a c
   (|>) r2 r1 = r2 . r1
 
 
@@ -29,13 +29,13 @@ namespace Transducer
 -- Useful reducers
 --------------------------------------------------------------------------------
 
-mapping : (outer -> inner) -> ReducerL acc inner outer
+mapping : (outer -> inner) -> StatelessReducer acc inner outer
 mapping fn step = \acc, outer => step acc (fn outer)
 
-filtering : (elem -> Bool) -> ReducerL acc elem elem
+filtering : (elem -> Bool) -> StatelessReducer acc elem elem
 filtering pf step = \acc, elem => if pf elem then step acc elem else acc
 
-catMapping : (Foldable t) => (outer -> t inner) -> ReducerL acc inner outer
+catMapping : (Foldable t) => (outer -> t inner) -> StatelessReducer acc inner outer
 catMapping fn step = \acc, outer => let inners = fn outer in foldl step acc inners
 
 

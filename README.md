@@ -1,13 +1,14 @@
 # Idris Reducers
 
-Implementation a reducer-like library in Idris, inspired by the great Clojure reducer library: https://clojure.org/reference/reducers.
+Implementation a reducer-like library in Idris, inspired by the great Clojure transducer library: https://clojure.org/reference/transducers.
 
 ## Goal & Motivation
 
-The goal is to provide reductions step (the accumulating function of foldl) that:
+The goal is to provide transformation of accumulating functions that:
 
-* Can be composed without the overhead of creating intermediary lists
-* Remains simple to write, read and reason about
+* Can be composed together as transformation pipe
+* Do not suffer from the overhead of creating intermediary lists
+* Can support arbitrary inner state (for non trivial transformations)
 
 ## Example
 
@@ -17,7 +18,7 @@ Here are some examples of transformations we can write:
     foldl (+) 0 (map (+1) (concatMap twice (filter odd [1..100])))
 
     -- Using the reducer library
-    foldl (filtering odd |> catMapping twice |> mapping (+1) (+)) 0 [1..100]
+    transduce (filtering odd |> catMapping twice |> mapping (+1)) (+) 0 [1..100]
 
 The above code takes as input a list of integers between 1 and 100, and:
 

@@ -49,6 +49,17 @@ export
 transduce : (Foldable t) => Reducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (stateless step))
 
+-- reduceImplR : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> (st, acc)
+-- reduceImplR step = foldr (\elem, (st, acc) => next step st acc elem)
+
+-- export
+-- reduceR : (Foldable t) => Step st acc elem -> acc -> t elem -> acc
+-- reduceR step result = uncurry (complete step) . reduceImplR step (state step, result)
+
+-- export
+-- transduceR : (Foldable t) => Reducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
+-- transduceR xf step = reduceR (xf (stateless step))
+
 
 --------------------------------------------------------------------------------
 -- Core (syntaxic sugar to compose reducers)
@@ -78,6 +89,30 @@ export
 catMapping : (Foldable t) => (outer -> t inner) -> Reducer acc s s inner outer
 catMapping fn = stateless $
   \step, st, acc, outer => reduceImpl step (st, acc) (fn outer)
+
+
+--------------------------------------------------------------------------------
+-- Basic reducers (stateless)
+--------------------------------------------------------------------------------
+
+-- TODO: use take?
+
+export
+chunksOf : Nat -> Reducer acc s (List elem, s) (List elem) elem
+chunksOf chunkSize step = MkStep ([], state step) nextChunk dumpRemaining
+  where
+    nextChunk (remaining, st) acc elem =
+      let remaining' = elem :: remaining in
+      if length remaining' == chunkSize
+        then let (st, acc) = next step st acc (reverse remaining')
+             in (([], st), acc)
+        else ((remaining', st), acc)
+    dumpRemaining (remaining, st) acc =
+      let (st', acc') =
+            if length remaining == 0
+              then (st, acc)
+              else next step st acc (reverse remaining)
+      in complete step st' acc'
 
 
 --------------------------------------------------------------------------------
@@ -139,6 +174,11 @@ should_allow_pure_xf_composition =
     assertEq 50 (transduce xf (+) 0 [1..10])
     assertEq 30240 (transduce xf (*) 1 [1..10])
 
+should_chunk_of : IO ()
+should_chunk_of = do
+  let xs = [1..10]
+  assertEq [[9, 10], [5..8], [1..4]] (transduce (chunksOf 4) (flip (::)) [] xs)
+
 export
 run_tests : IO ()
 run_tests = do
@@ -148,3 +188,4 @@ run_tests = do
   should_pipe_from_left_to_right [1..100]
   -- should_work_with_foldr [1..100]
   should_allow_pure_xf_composition
+  should_chunk_of

@@ -14,8 +14,15 @@ ReducerL acc a b = StepL acc a -> StepL acc b
 
 infixr 5 |>
 
-(|>) : ReducerL acc inner outer -> StepL acc inner -> StepL acc outer
-(|>) r step = r step
+-- Automatically used inside a foldl / foldr, with the terminal element
+namespace Reducer
+  (|>) : ReducerL acc inner outer -> StepL acc inner -> StepL acc outer
+  (|>) r step = r step
+
+-- Only used when piping transformation without terminal element
+namespace Transducer
+  (|>) : ReducerL acc b c -> ReducerL acc a b -> ReducerL acc a c
+  (|>) r2 r1 = r2 . r1
 
 
 --------------------------------------------------------------------------------
@@ -47,7 +54,7 @@ assertEq e g =
     "Expected == " ++ show e ++ ", Got: " ++ show g
 
 odd : Int -> Bool
-odd n = mod n 2 == 0
+odd n = mod n 2 == 1
 
 twice : Int -> List Int
 twice = replicate 2
@@ -85,6 +92,13 @@ reducers_should_work_with_foldr input =
     (foldr (::) [] (map (+1) (filter odd input)))
     (foldr (flip (filtering odd |> mapping (+1) |> flip (::))) [] input)
 
+should_allow_pure_xf_composition : IO ()
+should_allow_pure_xf_composition =
+  let xf = filtering odd |> mapping (*2)
+  in do
+    assertEq 50 (foldl (xf (+)) 0 [1..10])
+    assertEq 30240 (foldl (xf (*)) 1 [1..10])
+
 run_tests : IO ()
 run_tests = do
   mapping_should_do_as_map [1..100]
@@ -92,3 +106,4 @@ run_tests = do
   catmapping_should_do_as_concatMap [1..100]
   reducers_composition_is_reversed [1..100]
   reducers_should_work_with_foldr [1..100]
+  should_allow_pure_xf_composition

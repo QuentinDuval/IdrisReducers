@@ -1,6 +1,6 @@
-# Idris Reducers
+# Idris Transducers
 
-Implementation a reducer-like library in Idris, inspired by the great Clojure transducer library: https://clojure.org/reference/transducers.
+Implementation a transducer-like library in Idris, inspired by the great Clojure transducer library: https://clojure.org/reference/transducers.
 
 ## Goal & Motivation
 

@@ -84,9 +84,16 @@ reducers_composition_is_reversed input =
     assertEq expected $
       foldl (filtering odd |> catMapping twice |> mapping (+1) (+)) 0 input
 
+reducers_should_work_with_foldr : List Int -> IO ()
+reducers_should_work_with_foldr input =
+  assertEq
+    (foldr (::) [] (map (+1) (filter odd input)))
+    (foldr (flip (filtering odd |> mapping (+1) |> flip (::))) [] input)
+
 run_tests : IO ()
 run_tests = do
   mapping_should_do_as_map [1..100]
   filtering_should_do_as_filter [1..100]
   catmapping_should_do_as_concatMap [1..100]
   reducers_composition_is_reversed [1..100]
+  reducers_should_work_with_foldr [1..100]

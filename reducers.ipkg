@@ -3,6 +3,4 @@ package reducers
 sourcedir = src
 
 modules = Reducers
-
-executable = ReducersTest
-main = Main
+tests = Reducers.run_test

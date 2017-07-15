@@ -54,16 +54,20 @@ unStatus : (st, Status a) -> (st, a)
 unStatus (st, Done a) = (st, a)
 unStatus (st, Continue a) = (st, a)
 
-compStep : Step st acc elem  -> elem -> ((st, Status acc) -> (st, Status acc)) -> (st, Status acc) -> (st, Status acc)
-compStep step elem f result@(st, Done acc) = result
-compStep step elem f (st, Continue acc) = f (step st acc elem)
-
-reduceImpl : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> (st, Status acc)
-reduceImpl step (st, acc) elems = foldr (compStep step) id elems (st, Continue acc)
+runSteps : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> (st, Status acc)
+runSteps step (st, acc) elems = foldr compStep id elems (st, Continue acc)
+  where
+    compStep elem f result@(st, status) =
+      case status of
+        Done acc => result
+        Continue acc => f (step st acc elem)
 
 export
 reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc
-reduce step result = uncurry (complete step) . unStatus . reduceImpl (next step) (state step, result)
+reduce step result =
+  uncurry (complete step)
+    . unStatus
+    . runSteps (next step) (state step, result)
 
 export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
@@ -98,12 +102,20 @@ filtering pf = stateless $
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
 catMapping fn = stateless $
-  \xf, st, acc, outer => reduceImpl (next xf) (st, acc) (fn outer)
+  \xf, st, acc, outer => runSteps (next xf) (st, acc) (fn outer)
 
 
 --------------------------------------------------------------------------------
 -- Basic Transducers (stateful)
 --------------------------------------------------------------------------------
+
+dropping : Nat -> Transducer acc s (Nat, s) elem elem
+dropping n xf = MkReducer (n, state xf) dropImpl (\(n, st), elem => complete xf st elem)
+  where
+    dropImpl (S n, st) acc elem = ((n, st), Continue acc)
+    dropImpl (Z, st) acc elem =
+      let (st', acc') = next xf st acc elem
+      in ((Z, st'), acc')
 
 taking : Nat -> Transducer acc s (Nat, s) elem elem
 taking n xf = MkReducer (n, state xf) takeImpl (\(n, st), elem => complete xf st elem)
@@ -177,6 +189,12 @@ should_take input =
     (foldl (+) 0 (take 10 input))
     (transduce (taking 10) (+) 0 input)
 
+should_drop : List Int -> IO ()
+should_drop input =
+  assertEq
+    (foldl (+) 0 (drop 10 input))
+    (transduce (dropping 10) (+) 0 input)
+
 should_pipe_from_left_to_right : List Int -> IO ()
 should_pipe_from_left_to_right input =
   assertEq
@@ -210,6 +228,7 @@ run_tests = do
   should_filter [1..100]
   should_concat_map [1..100]
   should_take [1..100]
+  should_drop [1..100]
   should_pipe_from_left_to_right [1..100]
   -- should_work_with_foldr [1..100]
   should_allow_pure_xf_composition

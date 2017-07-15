@@ -20,7 +20,7 @@ public export
 record Reducer st acc elem where
   constructor MkReducer
   state : st
-  next : Step st acc elem
+  runStep : Step st acc elem
   complete : st -> acc -> acc
 
 public export
@@ -71,7 +71,7 @@ reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc
 reduce step result =
   uncurry (complete step)
     . unStatus
-    . runSteps (next step) (state step, result)
+    . runSteps (runStep step) (state step, result)
 
 export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
@@ -95,18 +95,18 @@ infixr 5 |>
 export
 mapping : (outer -> inner) -> Transducer acc s s inner outer
 mapping fn = stateless $
-  \xf, st, acc, outer => next xf st acc (fn outer)
+  \xf, st, acc, outer => runStep xf st acc (fn outer)
 
 export
 filtering : (elem -> Bool) -> Transducer acc s s elem elem
 filtering pf = stateless $
   \xf, st, acc, elem =>
-    if pf elem then next xf st acc elem else Continue (st, acc)
+    if pf elem then runStep xf st acc elem else Continue (st, acc)
 
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
 catMapping fn = stateless $
-  \xf, st, acc, outer => runSteps (next xf) (st, acc) (fn outer)
+  \xf, st, acc, outer => runSteps (runStep xf) (st, acc) (fn outer)
 
 
 --------------------------------------------------------------------------------
@@ -118,14 +118,14 @@ dropping n xf = MkReducer (n, state xf) dropImpl (\(n, st), elem => complete xf 
   where
     dropImpl (S n, st) acc elem = Continue ((n, st), acc)
     dropImpl (Z, st) acc elem =
-      map (\(st, acc) => ((Z, st), acc)) (next xf st acc elem)
+      map (\(st, acc) => ((Z, st), acc)) (runStep xf st acc elem)
 
 taking : Nat -> Transducer acc s (Nat, s) elem elem
 taking n xf = MkReducer (n, state xf) takeImpl (\(n, st), elem => complete xf st elem)
   where
     takeImpl (Z, st) acc elem = Done ((Z, st), acc)
     takeImpl (n, st) acc elem =
-      map (\(st, acc) => ((pred n, st), acc)) (next xf st acc elem)
+      map (\(st, acc) => ((pred n, st), acc)) (runStep xf st acc elem)
 
 -- TODO: use take?
 -- TODO: factorization possible: the complete always has to be called, and state separated as well
@@ -137,13 +137,13 @@ chunksOf chunkSize xf = MkReducer ([], state xf) nextChunk dumpRemaining
     nextChunk (remaining, st) acc elem =
       let remaining' = elem :: remaining in
       if length remaining' == chunkSize
-        then map (\(st, acc) => (([], st), acc)) $ next xf st acc (reverse remaining')
+        then map (\(st, acc) => (([], st), acc)) $ runStep xf st acc (reverse remaining')
         else Continue ((remaining', st), acc)
     dumpRemaining (remaining, st) acc =
       let (st', acc') =
             if length remaining == 0
               then (st, acc)
-              else unStatus (next xf st acc (reverse remaining))
+              else unStatus (runStep xf st acc (reverse remaining))
       in complete xf st' acc'
 
 

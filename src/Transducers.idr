@@ -9,6 +9,16 @@ export
 data Status a = Done a | Continue a
 
 export
+unStatus : Status a -> a
+unStatus (Done a) = a
+unStatus (Continue a) = a
+
+export
+implementation Functor Status where
+  map f (Done a) = Done (f a)
+  map f (Continue a) = Continue (f a)
+
+export
 StatelessStep : (acc: Type) -> (elem: Type) -> Type
 StatelessStep acc elem = acc -> elem -> acc
 
@@ -56,16 +66,6 @@ noComplete initState onStep xf = MkReducer
 --------------------------------------------------------------------------------
 -- Core (Reductions)
 --------------------------------------------------------------------------------
-
-export
-unStatus : Status a -> a
-unStatus (Done a) = a
-unStatus (Continue a) = a
-
-export
-implementation Functor Status where
-  map f (Done a) = Done (f a)
-  map f (Continue a) = Continue (f a)
 
 export
 withState : s' -> Status (s, acc) -> Status ((s', s), acc)

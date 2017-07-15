@@ -127,6 +127,15 @@ taking n xf = MkReducer (n, state xf) takeImpl (\(n, st), elem => complete xf st
     takeImpl (n, st) acc elem =
       map (\(st, acc) => ((pred n, st), acc)) (runStep xf st acc elem)
 
+interspersing : elem -> Transducer acc s (Bool, s) elem elem
+interspersing separator xf =
+  MkReducer (False, state xf) stepImpl (\(_, st), elem => complete xf st elem)
+  where
+    stepImpl (False, st) acc e =
+      map (\(st, acc) => ((True, st), acc)) (runStep xf st acc e)
+    stepImpl (True, st) acc e =
+      map (\(st, acc) => ((True, st), acc)) (runSteps (runStep xf) (st, acc) [separator, e])
+
 -- TODO: use take?
 -- TODO: factorization possible: the complete always has to be called, and state separated as well
 
@@ -203,12 +212,6 @@ should_pipe_from_left_to_right input =
     (foldl (+) 0 (map (+1) (concatMap twice (filter odd input))))
     (transduce (filtering odd |> catMapping twice |> mapping (+1)) (+) 0 input)
 
---should_work_with_foldr : List Int -> IO ()
---should_work_with_foldr input =
-  --assertEq
-    --(foldr (::) [] (map (+1) (filter odd input)))
-    --(foldr (flip (filtering odd |> mapping (+1) |> flip (::))) [] input)
-
 should_allow_pure_xf_composition : IO ()
 should_allow_pure_xf_composition =
   let xf = taking 10 . filtering odd . mapping (*2)
@@ -222,6 +225,10 @@ should_chunk_of = do
   assertEq "abcd efgh ijkl " (transduce xf (++) "" ['a'..'l'])
   assertEq "abcd efgh ij " (transduce xf (++) "" ['a'..'j'])
 
+should_intersperse : IO ()
+should_intersperse = do
+  let cs = ["a", "list", "of", "words"]
+  assertEq "a, list, of, words" (transduce (interspersing ", ") (++) "" cs)
 
 export
 run_tests : IO ()
@@ -232,6 +239,6 @@ run_tests = do
   should_take [1..100]
   should_drop [1..100]
   should_pipe_from_left_to_right [1..100]
-  -- should_work_with_foldr [1..100]
   should_allow_pure_xf_composition
   should_chunk_of
+  should_intersperse

@@ -14,7 +14,7 @@ StatelessStep acc elem = acc -> elem -> acc
 
 export
 Step : (state: Type) -> (acc: Type) -> (elem: Type) -> Type
-Step state acc elem = state -> acc -> elem -> (state, Status acc)
+Step state acc elem = state -> acc -> elem -> Status (state, acc)
 
 public export
 record Reducer st acc elem where
@@ -37,7 +37,7 @@ namespace StatelessStep
   export
   stateless : StatelessStep acc elem -> Reducer () acc elem
   stateless fn = MkReducer () step (const id)
-    where step = \_, acc, elem => ((), Continue (fn acc elem))
+    where step = \_, acc, elem => Continue ((), fn acc elem)
 
 namespace StatelessTransducer
 
@@ -50,17 +50,21 @@ namespace StatelessTransducer
 -- Core (Reductions)
 --------------------------------------------------------------------------------
 
-unStatus : (st, Status a) -> (st, a)
-unStatus (st, Done a) = (st, a)
-unStatus (st, Continue a) = (st, a)
+unStatus : Status a -> a
+unStatus (Done a) = a
+unStatus (Continue a) = a
 
-runSteps : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> (st, Status acc)
-runSteps step (st, acc) elems = foldr compStep id elems (st, Continue acc)
+implementation Functor Status where
+  map f (Done a) = Done (f a)
+  map f (Continue a) = Continue (f a)
+
+runSteps : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> Status (st, acc)
+runSteps step start elems = foldr compStep id elems (Continue start)
   where
-    compStep elem f result@(st, status) =
-      case status of
-        Done acc => result
-        Continue acc => f (step st acc elem)
+    compStep elem f result =
+      case result of
+        Done done => Done done
+        Continue (st, acc) => f (step st acc elem)
 
 export
 reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc
@@ -97,7 +101,7 @@ export
 filtering : (elem -> Bool) -> Transducer acc s s elem elem
 filtering pf = stateless $
   \xf, st, acc, elem =>
-    if pf elem then next xf st acc elem else (st, Continue acc)
+    if pf elem then next xf st acc elem else Continue (st, acc)
 
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
@@ -112,18 +116,16 @@ catMapping fn = stateless $
 dropping : Nat -> Transducer acc s (Nat, s) elem elem
 dropping n xf = MkReducer (n, state xf) dropImpl (\(n, st), elem => complete xf st elem)
   where
-    dropImpl (S n, st) acc elem = ((n, st), Continue acc)
+    dropImpl (S n, st) acc elem = Continue ((n, st), acc)
     dropImpl (Z, st) acc elem =
-      let (st', acc') = next xf st acc elem
-      in ((Z, st'), acc')
+      map (\(st, acc) => ((Z, st), acc)) (next xf st acc elem)
 
 taking : Nat -> Transducer acc s (Nat, s) elem elem
 taking n xf = MkReducer (n, state xf) takeImpl (\(n, st), elem => complete xf st elem)
   where
-    takeImpl (Z, st) acc elem = ((0, st), Done acc)
+    takeImpl (Z, st) acc elem = Done ((Z, st), acc)
     takeImpl (n, st) acc elem =
-      let (st', acc') = next xf st acc elem
-      in ((pred n, st'), acc')
+      map (\(st, acc) => ((pred n, st), acc)) (next xf st acc elem)
 
 -- TODO: use take?
 -- TODO: factorization possible: the complete always has to be called, and state separated as well
@@ -135,9 +137,8 @@ chunksOf chunkSize xf = MkReducer ([], state xf) nextChunk dumpRemaining
     nextChunk (remaining, st) acc elem =
       let remaining' = elem :: remaining in
       if length remaining' == chunkSize
-        then let (st, acc) = next xf st acc (reverse remaining')
-             in (([], st), acc)
-        else ((remaining', st), Continue acc)
+        then map (\(st, acc) => (([], st), acc)) $ next xf st acc (reverse remaining')
+        else Continue ((remaining', st), acc)
     dumpRemaining (remaining, st) acc =
       let (st', acc') =
             if length remaining == 0

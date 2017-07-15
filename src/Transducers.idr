@@ -127,6 +127,7 @@ catMapping fn = stateless $
 -- Basic Transducers (stateful)
 --------------------------------------------------------------------------------
 
+export
 dropping : Nat -> Transducer acc s (Nat, s) elem elem
 dropping n = noComplete n dropImpl
   where
@@ -134,6 +135,7 @@ dropping n = noComplete n dropImpl
     dropImpl next (Z, st) acc elem =
       withState Z (next st acc elem)
 
+export
 taking : Nat -> Transducer acc s (Nat, s) elem elem
 taking n = noComplete n takeImpl
   where
@@ -141,6 +143,7 @@ taking n = noComplete n takeImpl
     takeImpl next (n, st) acc elem =
       withState (pred n) (next st acc elem)
 
+export
 interspersing : elem -> Transducer acc s (Bool, s) elem elem
 interspersing separator = noComplete False stepImpl
   where
@@ -148,9 +151,6 @@ interspersing separator = noComplete False stepImpl
       withState True (next st acc e)
     stepImpl next (True, st) acc e =
       withState True (runSteps next (st, acc) [separator, e])
-
--- TODO: use take?
--- TODO: factorization possible: the complete always has to be called, and state separated as well
 
 export
 chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem

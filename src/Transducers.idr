@@ -5,7 +5,8 @@ module Transducers
 -- Core (definition of a step)
 --------------------------------------------------------------------------------
 
--- TODO: add reduced?
+export
+data Status a = Done a | Continue a
 
 export
 StatelessStep : (acc: Type) -> (elem: Type) -> Type
@@ -13,7 +14,7 @@ StatelessStep acc elem = acc -> elem -> acc
 
 export
 Step : (state: Type) -> (acc: Type) -> (elem: Type) -> Type
-Step state acc elem = state -> acc -> elem -> (state, acc)
+Step state acc elem = state -> acc -> elem -> (state, Status acc)
 
 public export
 record Reducer st acc elem where
@@ -35,7 +36,8 @@ namespace StatelessStep
 
   export
   stateless : StatelessStep acc elem -> Reducer () acc elem
-  stateless fn = MkReducer () (\_, acc, elem => ((), fn acc elem)) (const id)
+  stateless fn = MkReducer () step (const id)
+    where step = \_, acc, elem => ((), Continue (fn acc elem))
 
 namespace StatelessTransducer
 
@@ -48,12 +50,20 @@ namespace StatelessTransducer
 -- Core (Reductions)
 --------------------------------------------------------------------------------
 
-reduceImpl : (Foldable t) => Reducer st acc elem -> (st, acc) -> t elem -> (st, acc)
-reduceImpl step = foldl (\(st, acc) => next step st acc)
+unStatus : (st, Status a) -> (st, a)
+unStatus (st, Done a) = (st, a)
+unStatus (st, Continue a) = (st, a)
+
+compStep : Step st acc elem  -> elem -> ((st, Status acc) -> (st, Status acc)) -> (st, Status acc) -> (st, Status acc)
+compStep step elem f result@(st, Done acc) = result
+compStep step elem f (st, Continue acc) = f (step st acc elem)
+
+reduceImpl : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> (st, Status acc)
+reduceImpl step (st, acc) elems = foldr (compStep step) id elems (st, Continue acc)
 
 export
 reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc
-reduce step result = uncurry (complete step) . reduceImpl step (state step, result)
+reduce step result = uncurry (complete step) . unStatus . reduceImpl (next step) (state step, result)
 
 export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
@@ -82,17 +92,26 @@ mapping fn = stateless $
 export
 filtering : (elem -> Bool) -> Transducer acc s s elem elem
 filtering pf = stateless $
-  \xf, st, acc, elem => if pf elem then next xf st acc elem else (st, acc)
+  \xf, st, acc, elem =>
+    if pf elem then next xf st acc elem else (st, Continue acc)
 
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
 catMapping fn = stateless $
-  \xf, st, acc, outer => reduceImpl xf (st, acc) (fn outer)
+  \xf, st, acc, outer => reduceImpl (next xf) (st, acc) (fn outer)
 
 
 --------------------------------------------------------------------------------
--- Basic Transducers (stateless)
+-- Basic Transducers (stateful)
 --------------------------------------------------------------------------------
+
+taking : Nat -> Transducer acc s (Nat, s) elem elem
+taking n xf = MkReducer (n, state xf) takeImpl (\(n, st), elem => complete xf st elem)
+  where
+    takeImpl (Z, st) acc elem = ((0, st), Done acc)
+    takeImpl (n, st) acc elem =
+      let (st', acc') = next xf st acc elem
+      in ((pred n, st'), acc')
 
 -- TODO: use take?
 
@@ -105,12 +124,12 @@ chunksOf chunkSize xf = MkReducer ([], state xf) nextChunk dumpRemaining
       if length remaining' == chunkSize
         then let (st, acc) = next xf st acc (reverse remaining')
              in (([], st), acc)
-        else ((remaining', st), acc)
+        else ((remaining', st), Continue acc)
     dumpRemaining (remaining, st) acc =
       let (st', acc') =
             if length remaining == 0
               then (st, acc)
-              else next xf st acc (reverse remaining)
+              else unStatus (next xf st acc (reverse remaining))
       in complete xf st' acc'
 
 
@@ -152,19 +171,23 @@ should_concat_map input =
     (foldl (+) 0 (concatMap twice input))
     (transduce (catMapping twice) (+) 0 input)
 
+should_take : List Int -> IO ()
+should_take input =
+  assertEq
+    (foldl (+) 0 (take 10 input))
+    (transduce (taking 10) (+) 0 input)
+
 should_pipe_from_left_to_right : List Int -> IO ()
 should_pipe_from_left_to_right input =
   assertEq
     (foldl (+) 0 (map (+1) (concatMap twice (filter odd input))))
     (transduce (filtering odd |> catMapping twice |> mapping (+1)) (+) 0 input)
 
-{-
-should_work_with_foldr : List Int -> IO ()
-should_work_with_foldr input =
-  assertEq
-    (foldr (::) [] (map (+1) (filter odd input)))
-    (foldr (flip (filtering odd |> mapping (+1) |> flip (::))) [] input)
--}
+--should_work_with_foldr : List Int -> IO ()
+--should_work_with_foldr input =
+  --assertEq
+    --(foldr (::) [] (map (+1) (filter odd input)))
+    --(foldr (flip (filtering odd |> mapping (+1) |> flip (::))) [] input)
 
 should_allow_pure_xf_composition : IO ()
 should_allow_pure_xf_composition =
@@ -186,6 +209,7 @@ run_tests = do
   should_map [1..100]
   should_filter [1..100]
   should_concat_map [1..100]
+  should_take [1..100]
   should_pipe_from_left_to_right [1..100]
   -- should_work_with_foldr [1..100]
   should_allow_pure_xf_composition

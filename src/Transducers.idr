@@ -126,6 +126,7 @@ taking n xf = MkReducer (n, state xf) takeImpl (\(n, st), elem => complete xf st
       in ((pred n, st'), acc')
 
 -- TODO: use take?
+-- TODO: factorization possible: the complete always has to be called, and state separated as well
 
 export
 chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem

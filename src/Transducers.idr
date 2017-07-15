@@ -191,10 +191,10 @@ should_pipe_from_left_to_right input =
 
 should_allow_pure_xf_composition : IO ()
 should_allow_pure_xf_composition =
-  let xf = filtering odd . mapping (*2)
+  let xf = taking 10 . filtering odd . mapping (*2)
   in do
-    assertEq 50 (transduce xf (+) 0 [1..10])
-    assertEq 30240 (transduce xf (*) 1 [1..10])
+    assertEq 50 (transduce xf (+) 0 [1..100])
+    assertEq 30240 (transduce xf (*) 1 [1..100])
 
 should_chunk_of : IO ()
 should_chunk_of = do

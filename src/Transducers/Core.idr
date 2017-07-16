@@ -42,18 +42,14 @@ Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
 -- Helpers to build stateless Reducers and Transducers
 --------------------------------------------------------------------------------
 
-namespace StatelessStep
+export
+noStateStep : StatelessStep acc elem -> Reducer () acc elem
+noStateStep fn = MkReducer () step (const id)
+  where step = \_, acc, elem => Continue ((), fn acc elem)
 
-  export
-  stateless : StatelessStep acc elem -> Reducer () acc elem
-  stateless fn = MkReducer () step (const id)
-    where step = \_, acc, elem => Continue ((), fn acc elem)
-
-namespace StatelessTransducer
-
-  export
-  stateless : (Step s acc inner -> Step s acc outer) -> Transducer acc s s inner outer
-  stateless onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
+export
+noStateTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s inner outer
+noStateTransducer onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
 
 export
 noComplete : s' -> (Step s acc inner -> Step (s', s) acc outer) -> Transducer acc s (s', s) inner outer
@@ -90,7 +86,7 @@ reduce step result =
 
 export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
-transduce xf step = reduce (xf (stateless step))
+transduce xf step = reduce (xf (noStateStep step))
 
 
 --------------------------------------------------------------------------------
@@ -110,18 +106,18 @@ export
 
 export
 mapping : (outer -> inner) -> Transducer acc s s inner outer
-mapping fn = stateless $
+mapping fn = noStateTransducer $
   \next, st, acc, outer => next st acc (fn outer)
 
 export
 filtering : (elem -> Bool) -> Transducer acc s s elem elem
-filtering pf = stateless $
+filtering pf = noStateTransducer $
   \next, st, acc, elem =>
     if pf elem then next st acc elem else Continue (st, acc)
 
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
-catMapping fn = stateless $
+catMapping fn = noStateTransducer $
   \next, st, acc, outer => runSteps next (st, acc) (fn outer)
 
 

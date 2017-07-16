@@ -151,6 +151,13 @@ interspersing separator = noComplete False stepImpl
       withState True (runSteps next (st, acc) [separator, e])
 
 export
+indexing : Transducer acc s (Int, s) (Int, elem) elem
+indexing = noComplete 0 stepImpl
+  where
+    stepImpl next (n, st) acc e =
+      withState (succ n) (next st acc (n, e))
+
+export
 chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem
 chunksOf chunkSize xf = MkReducer ([], state xf) nextChunk dumpRemaining
   where

@@ -51,6 +51,11 @@ should_allow_pure_xf_composition =
     assertEq 50 (transduce xf (+) 0 [1..100])
     assertEq 30240 (transduce xf (*) 1 [1..100])
 
+should_index : IO ()
+should_index = do
+  let xf = indexing . mapping (\(idx, s) => show idx ++ ": " ++ s) . interspersing ", "
+  assertEq "0: Zero, 1: One, 2: Two" (transduce xf (++) "" ["Zero", "One", "Two"])
+
 should_chunk_of : IO ()
 should_chunk_of = do
   let xf = chunksOf 4 . mapping pack . mapping (++ " ")
@@ -72,5 +77,6 @@ run_tests = do
   should_drop [1..100]
   should_pipe_from_left_to_right [1..100]
   should_allow_pure_xf_composition
+  should_index
   should_chunk_of
   should_intersperse

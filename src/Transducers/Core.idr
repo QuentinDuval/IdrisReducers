@@ -19,11 +19,11 @@ implementation Functor Status where
   map f (Continue a) = Continue (f a)
 
 export
-StatelessStep : (acc: Type) -> (elem: Type) -> Type
+StatelessStep : (acc, elem: Type) -> Type
 StatelessStep acc elem = acc -> elem -> acc
 
 export
-Step : (state: Type) -> (acc: Type) -> (elem: Type) -> Type
+Step : (state, acc, elem: Type) -> Type
 Step state acc elem = state -> acc -> elem -> Status (state, acc)
 
 public export
@@ -61,6 +61,10 @@ statefulTransducer initState onStep xf = MkReducer
   (initState, state xf)
   (onStep (runStep xf))
   (\state => complete xf (snd state))
+
+-- TODO: to make the transfer of state better:
+-- * Use a State Monad to thread the wrapped state?
+-- * Could be used to specific the runStep, and maybe even complete and init
 
 
 --------------------------------------------------------------------------------

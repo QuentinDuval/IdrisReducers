@@ -1,5 +1,7 @@
 module Transducers.Core
 
+import Control.Monad.State
+
 
 --------------------------------------------------------------------------------
 -- Core (definition of a step)
@@ -24,7 +26,7 @@ StatelessStep acc elem = acc -> elem -> acc
 
 export
 Step : (state, acc, elem: Type) -> Type
-Step state acc elem = state -> acc -> elem -> Status (state, acc)
+Step state acc elem = acc -> elem -> State state (Status acc)
 
 public export
 record Reducer st acc elem where
@@ -32,6 +34,10 @@ record Reducer st acc elem where
   state : st
   runStep : Step st acc elem
   complete : st -> acc -> acc
+
+noStateStep : StatelessStep acc elem -> Reducer () acc elem
+noStateStep fn = MkReducer () step (const id)
+  where step acc x = pure $ Continue (fn acc x)
 
 public export
 Transducer : (acc, s1, s2, inner, outer: Type) -> Type
@@ -43,31 +49,36 @@ Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
 --------------------------------------------------------------------------------
 
 export
-noStateStep : StatelessStep acc elem -> Reducer () acc elem
-noStateStep fn = MkReducer () step (const id)
-  where step = \_, acc, elem => Continue ((), fn acc elem)
-
-export
-updateState : s' -> Status (s, acc) -> Status ((s', s), acc)
-updateState s' = map (\(s, acc) => ((s', s), acc))
-
-export
 statelessTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s inner outer
 statelessTransducer onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
 
 export
-statefulTransducer : s' -> (Step s acc inner -> Step (s', s) acc outer) -> Transducer acc s (s', s) inner outer
-statefulTransducer initState onStep xf = MkReducer
-  (initState, state xf)
-  (onStep (runStep xf))
-  (\state => complete xf (snd state))
+makeTransducer :
+    s'
+    -> (Step s acc inner -> Step s (s', acc) outer)
+    -> (Step s acc inner -> s' -> acc -> State s acc)
+    -> Transducer acc s (s', s) inner outer
+makeTransducer initState onStep onComplete xf =
+  MkReducer (initState, state xf) stepImpl completeImpl
+  where
+    completeImpl (s', s) acc =
+      complete xf s $ evalState (onComplete (runStep xf) s' acc) s
+    stepImpl acc elem = do
+      (s1', s1) <- get
+      let (result, s2) = runState (onStep (runStep xf) (s1', acc) elem) s1
+      case result of
+        (Done (s2', acc)) => do put (s2', s2); pure (Done acc)
+        (Continue (s2', acc)) => do put (s2', s2); pure (Continue acc)
 
--- TODO: to make the transfer of state better:
--- * Use a State Monad to thread the wrapped state?
--- * Could be used to specific the runStep, and maybe even complete and init
+export
+statefulTransducer : s' -> (Step s acc inner -> Step s (s', acc) outer) -> Transducer acc s (s', s) inner outer
+statefulTransducer initState onStep = makeTransducer initState onStep onComplete
+  where
+    onComplete next _ acc = pure acc
 
--- TransducePipe : (state, val: Type) -> Type
--- TransducePipe state val = State state val
+export
+withState : s -> Status acc -> Status (s, acc)
+withState s = map (\acc => (s, acc))
 
 
 --------------------------------------------------------------------------------
@@ -75,26 +86,23 @@ statefulTransducer initState onStep xf = MkReducer
 --------------------------------------------------------------------------------
 
 export
-runSteps : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> Status (st, acc)
-runSteps step start elems =
-  foldr compStep id elems (Continue start)
+runSteps : (Foldable t) => Step st acc elem -> acc -> t elem -> State st (Status acc)
+runSteps step acc elems = foldr stepImpl (pure . id) elems (Continue acc)
   where
-    compStep elem nextIteration result =
-      case result of
-        Done done => Done done
-        Continue (st, acc) => nextIteration (step st acc elem)
+    stepImpl _ nextIteration (Done acc) = pure (Done acc)
+    stepImpl elem nextIteration (Continue acc) = step acc elem >>= nextIteration
 
 export
 reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc
-reduce step result =
+reduce step acc =
   uncurry (complete step)
-    . unStatus
-    . runSteps (runStep step) (state step, result)
+    . (\(acc, s) => (s, unStatus acc))
+    . (flip runState (state step))
+    . runSteps (runStep step) acc
 
 export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (noStateStep step))
-
 
 --------------------------------------------------------------------------------
 -- Core (syntaxic sugar to compose Transducers)
@@ -113,19 +121,20 @@ export
 
 export
 mapping : (outer -> inner) -> Transducer acc s s inner outer
-mapping fn = statelessTransducer $
-  \next, st, acc, outer => next st acc (fn outer)
+mapping fn = statelessTransducer $ \next, acc, outer => next acc (fn outer)
 
 export
 filtering : (elem -> Bool) -> Transducer acc s s elem elem
 filtering pf = statelessTransducer $
-  \next, st, acc, elem =>
-    if pf elem then next st acc elem else Continue (st, acc)
+  \next, acc, elem =>
+    if pf elem
+      then next acc elem
+      else pure (Continue acc)
 
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
 catMapping fn = statelessTransducer $
-  \next, st, acc, outer => runSteps next (st, acc) (fn outer)
+  \next, acc, outer => runSteps next acc (fn outer)
 
 
 --------------------------------------------------------------------------------
@@ -136,33 +145,29 @@ export
 dropping : Nat -> Transducer acc s (Nat, s) elem elem
 dropping n = statefulTransducer n dropImpl
   where
-    dropImpl next (S n, st) acc elem = Continue ((n, st), acc)
-    dropImpl next (Z, st) acc elem =
-      updateState Z (next st acc elem)
+    dropImpl next (S n, acc) e = pure $ Continue (n, acc)
+    dropImpl next (Z, acc) e = withState Z <$> next acc e
 
 export
 taking : Nat -> Transducer acc s (Nat, s) elem elem
 taking n = statefulTransducer n takeImpl
   where
-    takeImpl next (Z, st) acc elem = Done ((Z, st), acc)
-    takeImpl next (n, st) acc elem =
-      updateState (pred n) (next st acc elem)
+    takeImpl next (Z, acc) e = pure (Done (Z, acc))
+    takeImpl next (n, acc) e = withState (pred n) <$> next acc e
 
 export
 interspersing : elem -> Transducer acc s (Bool, s) elem elem
 interspersing separator = statefulTransducer False stepImpl
   where
-    stepImpl next (False, st) acc e =
-      updateState True (next st acc e)
-    stepImpl next (True, st) acc e =
-      updateState True (runSteps next (st, acc) [separator, e])
+    stepImpl next (False, acc) e = withState True <$> next acc e
+    stepImpl next (True, acc) e =
+      withState True <$> runSteps next acc [separator, e]
 
 export
 indexingFrom : Int -> Transducer acc s (Int, s) (Int, elem) elem
 indexingFrom startIndex = statefulTransducer startIndex stepImpl
   where
-    stepImpl next (n, st) acc e =
-      updateState (succ n) (next st acc (n, e))
+    stepImpl next (n, acc) e = withState (succ n) <$> next acc (n, e)
 
 export
 indexing : Transducer acc s (Int, s) (Int, elem) elem
@@ -170,18 +175,16 @@ indexing = indexingFrom 0
 
 export
 chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem
-chunksOf chunkSize xf = MkReducer ([], state xf) nextChunk dumpRemaining
+chunksOf chunkSize = makeTransducer [] nextChunk dumpRemaining
   where
-    nextChunk (remaining, st) acc elem =
-      let remaining' = elem :: remaining in
+    nextChunk next (remaining, acc) e =
+      let remaining' = e :: remaining in
       if length remaining' == chunkSize
-        then updateState [] $ runStep xf st acc (reverse remaining')
-        else updateState remaining' $ Continue (st, acc)
-    dumpRemaining (remaining, st) acc =
-      let (st', acc') =
-            if length remaining == 0
-              then (st, acc)
-              else unStatus (runStep xf st acc (reverse remaining))
-      in complete xf st' acc'
+        then withState [] <$> next acc (reverse remaining')
+        else pure $ Continue (remaining', acc)
+    dumpRemaining next remaining acc =
+      if length remaining == 0
+          then pure acc
+          else unStatus <$> next acc (reverse remaining)
 
 -- TODO: unique and deduplicate

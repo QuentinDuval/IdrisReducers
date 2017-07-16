@@ -125,18 +125,31 @@ export
 taking : Nat -> Transducer acc s (Nat, s) elem elem
 taking n = statefulTransducer n takeImpl
   where
-    takeImpl next (Z, acc) elem = pure (Done (Z, acc))
-    takeImpl next (n, acc) elem = do
-      acc' <- next acc elem
-      pure $ withState (pred n) acc'
+    takeImpl next (Z, acc) e = pure (Done (Z, acc))
+    takeImpl next (n, acc) e = withState (pred n) <$> next acc e
 
+export
+interspersing : elem -> Transducer acc s (Bool, s) elem elem
+interspersing separator = statefulTransducer False stepImpl
+  where
+    stepImpl next (False, acc) e = withState True <$> next acc e
+    stepImpl next (True, acc) e =
+      withState True <$> runSteps next acc [separator, e]
 
---------------------------------------------------------------------------------
--- Tests
---------------------------------------------------------------------------------
-
-run_tests : IO ()
-run_tests = do
-  print $ foldl (+) 0 (map (+1) [0..9])
-  print $ transduce (mapping (+1)) (+) 0 [0..9]
-  pure ()
+{-
+export
+chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem
+chunksOf chunkSize xf = MkReducer ([], state xf) nextChunk dumpRemaining
+  where
+    nextChunk (remaining, st) acc elem =
+      let remaining' = elem :: remaining in
+      if length remaining' == chunkSize
+        then updateState [] $ runStep xf st acc (reverse remaining')
+        else updateState remaining' $ Continue (st, acc)
+    dumpRemaining (remaining, st) acc =
+      let (st', acc') =
+            if length remaining == 0
+              then (st, acc)
+              else unStatus (runStep xf st acc (reverse remaining))
+      in complete xf st' acc'
+-}

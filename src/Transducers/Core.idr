@@ -34,7 +34,7 @@ record Reducer st acc elem where
   complete : st -> acc -> acc
 
 public export
-Transducer : (acc: Type) -> (s1, s2: Type) -> (inner, outer: Type) -> Type
+Transducer : (acc, s1, s2, inner, outer: Type) -> Type
 Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
 
 
@@ -151,11 +151,15 @@ interspersing separator = noComplete False stepImpl
       withState True (runSteps next (st, acc) [separator, e])
 
 export
-indexing : Transducer acc s (Int, s) (Int, elem) elem
-indexing = noComplete 0 stepImpl
+indexingFrom : Int -> Transducer acc s (Int, s) (Int, elem) elem
+indexingFrom startIndex = noComplete startIndex stepImpl
   where
     stepImpl next (n, st) acc e =
       withState (succ n) (next st acc (n, e))
+
+export
+indexing : Transducer acc s (Int, s) (Int, elem) elem
+indexing = indexingFrom 0
 
 export
 chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem

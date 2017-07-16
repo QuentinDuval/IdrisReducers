@@ -1,6 +1,6 @@
 module Test.Transducers.Core
 
-import Transducers.Core
+import Transducers
 
 
 --------------------------------------------------------------------------------

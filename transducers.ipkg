@@ -5,5 +5,7 @@ sourcedir = src
 modules = Transducers
         , Transducers.Core
         , Test.Transducers.Core
+        , Test.Transducers.Examples
 
 tests = Test.Transducers.Core.run_tests
+      , Test.Transducers.Examples.run_tests

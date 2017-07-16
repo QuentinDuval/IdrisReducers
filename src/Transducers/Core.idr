@@ -48,16 +48,16 @@ noStateStep fn = MkReducer () step (const id)
   where step = \_, acc, elem => Continue ((), fn acc elem)
 
 export
-noStateTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s inner outer
-noStateTransducer onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
-
-export
 updateState : s' -> Status (s, acc) -> Status ((s', s), acc)
 updateState s' = map (\(s, acc) => ((s', s), acc))
 
 export
-noComplete : s' -> (Step s acc inner -> Step (s', s) acc outer) -> Transducer acc s (s', s) inner outer
-noComplete initState onStep xf = MkReducer
+statelessTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s inner outer
+statelessTransducer onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
+
+export
+statefulTransducer : s' -> (Step s acc inner -> Step (s', s) acc outer) -> Transducer acc s (s', s) inner outer
+statefulTransducer initState onStep xf = MkReducer
   (initState, state xf)
   (onStep (runStep xf))
   (\state => complete xf (snd state))
@@ -106,18 +106,18 @@ export
 
 export
 mapping : (outer -> inner) -> Transducer acc s s inner outer
-mapping fn = noStateTransducer $
+mapping fn = statelessTransducer $
   \next, st, acc, outer => next st acc (fn outer)
 
 export
 filtering : (elem -> Bool) -> Transducer acc s s elem elem
-filtering pf = noStateTransducer $
+filtering pf = statelessTransducer $
   \next, st, acc, elem =>
     if pf elem then next st acc elem else Continue (st, acc)
 
 export
 catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
-catMapping fn = noStateTransducer $
+catMapping fn = statelessTransducer $
   \next, st, acc, outer => runSteps next (st, acc) (fn outer)
 
 
@@ -127,7 +127,7 @@ catMapping fn = noStateTransducer $
 
 export
 dropping : Nat -> Transducer acc s (Nat, s) elem elem
-dropping n = noComplete n dropImpl
+dropping n = statefulTransducer n dropImpl
   where
     dropImpl next (S n, st) acc elem = Continue ((n, st), acc)
     dropImpl next (Z, st) acc elem =
@@ -135,7 +135,7 @@ dropping n = noComplete n dropImpl
 
 export
 taking : Nat -> Transducer acc s (Nat, s) elem elem
-taking n = noComplete n takeImpl
+taking n = statefulTransducer n takeImpl
   where
     takeImpl next (Z, st) acc elem = Done ((Z, st), acc)
     takeImpl next (n, st) acc elem =
@@ -143,7 +143,7 @@ taking n = noComplete n takeImpl
 
 export
 interspersing : elem -> Transducer acc s (Bool, s) elem elem
-interspersing separator = noComplete False stepImpl
+interspersing separator = statefulTransducer False stepImpl
   where
     stepImpl next (False, st) acc e =
       updateState True (next st acc e)
@@ -152,7 +152,7 @@ interspersing separator = noComplete False stepImpl
 
 export
 indexingFrom : Int -> Transducer acc s (Int, s) (Int, elem) elem
-indexingFrom startIndex = noComplete startIndex stepImpl
+indexingFrom startIndex = statefulTransducer startIndex stepImpl
   where
     stepImpl next (n, st) acc e =
       updateState (succ n) (next st acc (n, e))

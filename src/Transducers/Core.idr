@@ -38,7 +38,7 @@ Transducer : (acc, s1, s2, inner, outer: Type) -> Type
 Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
 
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Helpers to build stateless Reducers and Transducers
 --------------------------------------------------------------------------------
 
@@ -65,6 +65,9 @@ statefulTransducer initState onStep xf = MkReducer
 -- TODO: to make the transfer of state better:
 -- * Use a State Monad to thread the wrapped state?
 -- * Could be used to specific the runStep, and maybe even complete and init
+
+-- TransducePipe : (state, val: Type) -> Type
+-- TransducePipe state val = State state val
 
 
 --------------------------------------------------------------------------------

@@ -73,7 +73,14 @@ chunksOf chunkSize = makeTransducer [] nextChunk dumpRemaining
         else pure $ Continue (remaining', acc)
     dumpRemaining next remaining acc =
       if length remaining == 0
-          then pure acc
-          else unStatus <$> next acc (reverse remaining)
+        then pure acc
+        else unStatus <$> next acc (reverse remaining)
 
--- TODO: unique and deduplicate
+export
+deduplicate : (Eq elem) => Transducer acc s (Maybe elem, s) elem elem
+deduplicate = statefulTransducer Nothing stepImpl
+  where
+    stepImpl next (oldVal, acc) e =
+      if oldVal == Just e
+        then pure $ Continue (oldVal, acc)
+        else withState (Just e) <$> next acc e

@@ -67,6 +67,10 @@ should_intersperse = do
   let cs = ["a", "list", "of", "words"]
   assertEq "a, list, of, words" (transduce (interspersing ", ") (++) "" cs)
 
+should_deduplicate : IO ()
+should_deduplicate = do
+  assertEq "abcdcbad" $ transduce (mapping singleton . deduplicate) (++) "" (unpack "abbcddccbaad")
+
 export
 run_tests : IO ()
 run_tests = do
@@ -80,3 +84,4 @@ run_tests = do
   should_index
   should_chunk_of
   should_intersperse
+  should_deduplicate

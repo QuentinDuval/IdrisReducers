@@ -52,6 +52,10 @@ noStateTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s
 noStateTransducer onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
 
 export
+updateState : s' -> Status (s, acc) -> Status ((s', s), acc)
+updateState s' = map (\(s, acc) => ((s', s), acc))
+
+export
 noComplete : s' -> (Step s acc inner -> Step (s', s) acc outer) -> Transducer acc s (s', s) inner outer
 noComplete initState onStep xf = MkReducer
   (initState, state xf)
@@ -62,10 +66,6 @@ noComplete initState onStep xf = MkReducer
 --------------------------------------------------------------------------------
 -- Core (Reductions)
 --------------------------------------------------------------------------------
-
-export
-withState : s' -> Status (s, acc) -> Status ((s', s), acc)
-withState s' = map (\(s, acc) => ((s', s), acc))
 
 export
 runSteps : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> Status (st, acc)
@@ -131,7 +131,7 @@ dropping n = noComplete n dropImpl
   where
     dropImpl next (S n, st) acc elem = Continue ((n, st), acc)
     dropImpl next (Z, st) acc elem =
-      withState Z (next st acc elem)
+      updateState Z (next st acc elem)
 
 export
 taking : Nat -> Transducer acc s (Nat, s) elem elem
@@ -139,23 +139,23 @@ taking n = noComplete n takeImpl
   where
     takeImpl next (Z, st) acc elem = Done ((Z, st), acc)
     takeImpl next (n, st) acc elem =
-      withState (pred n) (next st acc elem)
+      updateState (pred n) (next st acc elem)
 
 export
 interspersing : elem -> Transducer acc s (Bool, s) elem elem
 interspersing separator = noComplete False stepImpl
   where
     stepImpl next (False, st) acc e =
-      withState True (next st acc e)
+      updateState True (next st acc e)
     stepImpl next (True, st) acc e =
-      withState True (runSteps next (st, acc) [separator, e])
+      updateState True (runSteps next (st, acc) [separator, e])
 
 export
 indexingFrom : Int -> Transducer acc s (Int, s) (Int, elem) elem
 indexingFrom startIndex = noComplete startIndex stepImpl
   where
     stepImpl next (n, st) acc e =
-      withState (succ n) (next st acc (n, e))
+      updateState (succ n) (next st acc (n, e))
 
 export
 indexing : Transducer acc s (Int, s) (Int, elem) elem
@@ -168,8 +168,8 @@ chunksOf chunkSize xf = MkReducer ([], state xf) nextChunk dumpRemaining
     nextChunk (remaining, st) acc elem =
       let remaining' = elem :: remaining in
       if length remaining' == chunkSize
-        then withState [] $ runStep xf st acc (reverse remaining')
-        else Continue ((remaining', st), acc)
+        then updateState [] $ runStep xf st acc (reverse remaining')
+        else updateState remaining' $ Continue (st, acc)
     dumpRemaining (remaining, st) acc =
       let (st', acc') =
             if length remaining == 0

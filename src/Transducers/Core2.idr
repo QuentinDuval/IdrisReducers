@@ -90,12 +90,15 @@ reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc
 reduce step acc =
   uncurry (complete step)
     . (\(acc, s) => (s, unStatus acc))
-    . (\c => runState c (state step))
+    . (flip runState (state step))
     . runSteps (runStep step) acc
 
 export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (noStateStep step))
+
+-- TODO: keep it without monad inside?
+-- unwrapState : Step st acc elem -> (st -> acc -> elem -> (s, Status elem))
 
 
 --------------------------------------------------------------------------------

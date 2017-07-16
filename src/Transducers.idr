@@ -75,10 +75,10 @@ export
 runSteps : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> Status (st, acc)
 runSteps step start elems = foldr compStep id elems (Continue start)
   where
-    compStep elem f result =
+    compStep elem nextIteration result =
       case result of
         Done done => Done done
-        Continue (st, acc) => f (step st acc elem)
+        Continue (st, acc) => nextIteration (step st acc elem)
 
 export
 reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc

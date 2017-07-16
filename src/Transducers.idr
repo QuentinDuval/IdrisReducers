@@ -73,7 +73,8 @@ withState s' = map (\(s, acc) => ((s', s), acc))
 
 export
 runSteps : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> Status (st, acc)
-runSteps step start elems = foldr compStep id elems (Continue start)
+runSteps step start elems =
+  foldr compStep id elems (Continue start) -- TODO: is it really not consuming all elements anyway?
   where
     compStep elem nextIteration result =
       case result of

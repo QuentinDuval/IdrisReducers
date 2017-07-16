@@ -75,15 +75,12 @@ withState s = map (\acc => (s, acc))
 -- Core (Reductions)
 --------------------------------------------------------------------------------
 
-foldlM : (Foldable t, Monad m) => (funcM: a -> Lazy b -> m a) -> (init: a) -> (input: t b) -> m a
-foldlM fm a0 = foldl (\ma,b => ma >>= flip fm b) (pure a0)
-
 export
 runSteps : (Foldable t) => Step st acc elem -> acc -> t elem -> State st (Status acc)
-runSteps step acc elems = foldlM stepImpl (Continue acc) elems
+runSteps step acc elems = foldr stepImpl (pure . id) elems (Continue acc)
   where
-    stepImpl (Done acc) _ = pure (Done acc)
-    stepImpl (Continue acc) elem = step acc (Force elem)
+    stepImpl _ nextIteration (Done acc) = pure (Done acc)
+    stepImpl elem nextIteration (Continue acc) = step acc elem >>= nextIteration
 
 export
 reduce : (Foldable t) => Reducer st acc elem -> acc -> t elem -> acc
@@ -96,9 +93,6 @@ reduce step acc =
 export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (noStateStep step))
-
--- TODO: keep it without monad inside?
--- unwrapState : Step st acc elem -> (st -> acc -> elem -> (s, Status elem))
 
 
 --------------------------------------------------------------------------------

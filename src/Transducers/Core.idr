@@ -77,7 +77,7 @@ statefulTransducer initState onStep xf = MkReducer
 export
 runSteps : (Foldable t) => Step st acc elem -> (st, acc) -> t elem -> Status (st, acc)
 runSteps step start elems =
-  foldr compStep id elems (Continue start) -- TODO: is it really not consuming all elements anyway?
+  foldr compStep id elems (Continue start)
   where
     compStep elem nextIteration result =
       case result of

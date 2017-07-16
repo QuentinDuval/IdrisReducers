@@ -104,16 +104,6 @@ export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (noStateStep step))
 
---------------------------------------------------------------------------------
--- Core (syntaxic sugar to compose Transducers)
---------------------------------------------------------------------------------
-
-infixr 5 |>
-
-export
-(|>) : (b -> c) -> (a -> b) -> (a -> c)
-(|>) r2 r1 = r2 . r1
-
 
 --------------------------------------------------------------------------------
 -- Basic Transducers (stateless)

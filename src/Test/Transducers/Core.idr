@@ -42,7 +42,7 @@ should_pipe_from_left_to_right : List Int -> IO ()
 should_pipe_from_left_to_right input =
   assertEq
     (foldl (+) 0 (map (+1) (concatMap twice (filter odd input))))
-    (transduce (filtering odd |> catMapping twice |> mapping (+1)) (+) 0 input)
+    (transduce (filtering odd . catMapping twice . mapping (+1)) (+) 0 input)
 
 should_allow_pure_xf_composition : IO ()
 should_allow_pure_xf_composition =

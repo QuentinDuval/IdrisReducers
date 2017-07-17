@@ -32,6 +32,10 @@ should_take input =
     (foldl (+) 0 (take 10 input))
     (transduce (taking 10) (+) 0 input)
 
+should_take_while : IO ()
+should_take_while =
+  assertEq 21 $ transduce (takingWhile (< 17)) (+) 0 [1..100]
+
 should_drop : List Int -> IO ()
 should_drop input =
   assertEq
@@ -78,6 +82,7 @@ run_tests = do
   should_filter [1..100]
   should_concat_map [1..100]
   should_take [1..100]
+  should_take_while
   should_drop [1..100]
   should_pipe_from_left_to_right [1..100]
   should_allow_pure_xf_composition

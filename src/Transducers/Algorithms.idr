@@ -25,6 +25,15 @@ catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner oute
 catMapping fn = statelessTransducer $
   \next, acc, outer => runSteps next acc (fn outer)
 
+export
+takingWhile : (acc -> Bool) -> Transducer acc s s elem elem
+takingWhile p = statelessTransducer $
+  \next, acc, elem => do
+    acc' <- next acc elem
+    if p (unStatus acc')
+      then pure acc'
+      else pure (Done $ unStatus acc')
+
 
 --------------------------------------------------------------------------------
 -- Basic Transducers (stateful)

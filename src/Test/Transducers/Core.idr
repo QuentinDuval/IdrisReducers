@@ -14,6 +14,12 @@ should_map input =
     (foldl (+) 0 (map (*2) input))
     (transduce (mapping (*2)) (+) 0 input)
 
+should_follow_map_law : IO ()
+should_follow_map_law =
+  assertEq
+    (transduce (mapping length . mapping (*2)) (+) 0 ["abc", "", "cdef", "g"])
+    (transduce (mapping ((*2) . length)) (+) 0 ["abc", "", "cdef", "g"])
+
 should_filter : List Int -> IO ()
 should_filter input =
   assertEq
@@ -85,6 +91,7 @@ export
 run_tests : IO ()
 run_tests = do
   should_map [1..100]
+  should_follow_map_law
   should_filter [1..100]
   should_concat_map [1..100]
   should_reduce_terminal [1..100]

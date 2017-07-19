@@ -26,6 +26,12 @@ should_concat_map input =
     (foldl (+) 0 (concatMap twice input))
     (transduce (catMapping twice) (+) 0 input)
 
+should_reduce_terminal : List Int -> IO ()
+should_reduce_terminal input =
+  assertEq
+    (foldl (+) 0 (filter odd (map (*2) input)))
+    (reduce (mapping (*2) . filtering odd $ terminal (+)) 0 input)
+
 should_take : List Int -> IO ()
 should_take input =
   assertEq
@@ -81,6 +87,7 @@ run_tests = do
   should_map [1..100]
   should_filter [1..100]
   should_concat_map [1..100]
+  should_reduce_terminal [1..100]
   should_take [1..100]
   should_take_while
   should_drop [1..100]

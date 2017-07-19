@@ -35,8 +35,9 @@ record Reducer st acc elem where
   runStep : Step st acc elem
   complete : st -> acc -> acc
 
-noStateStep : StatelessStep acc elem -> Reducer () acc elem
-noStateStep fn = MkReducer () step (const id)
+export
+terminal : StatelessStep acc elem -> Reducer () acc elem
+terminal fn = MkReducer () step (const id)
   where step acc x = pure $ Continue (fn acc x)
 
 public export
@@ -102,4 +103,4 @@ reduce step acc =
 
 export
 transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
-transduce xf step = reduce (xf (noStateStep step))
+transduce xf step = reduce (xf (terminal step))

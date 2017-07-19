@@ -1,8 +1,46 @@
 module Test.Transducers.Examples
 
+import Control.Monad.State
 import Transducers
 import Test.Transducers.Utils
 
+
+--------------------------------------------------------------------------------
+
+sumLength : StatelessStep Int String
+sumLength totalLength str = totalLength + fromNat (length str)
+
+test_sumLength : IO ()
+test_sumLength =
+  assertEq 10 (foldl sumLength 0 ["abc", "de", "", "fghij"])
+
+--------------------------------------------------------------------------------
+
+sumLengthOfEveryOddStrings : Step Bool Int String
+sumLengthOfEveryOddStrings totalLength str = do
+  doSum <- get
+  modify not
+  pure $ if doSum
+    then Continue (sumLength totalLength str)
+    else Continue (totalLength)
+
+test_sumLengthOfEveryOddStrings : IO ()
+test_sumLengthOfEveryOddStrings = do
+  assertEq 6 $
+    reduce (MkReducer True sumLengthOfEveryOddStrings (const id)) 0 ["abc", "de", "", "fg", "hij"]
+
+--------------------------------------------------------------------------------
+
+sumLengthUntil : Int -> Step () Int String
+sumLengthUntil maxValue totalLength str =
+  pure $ if totalLength <= maxValue
+    then Continue (sumLength totalLength str)
+    else Done totalLength
+
+test_sumLengthUntil : IO ()
+test_sumLengthUntil = do
+  assertEq 7 $
+    reduce (MkReducer () (sumLengthUntil 5) (const id)) 0 ["abc", "de", "", "fg", "hij"]
 
 --------------------------------------------------------------------------------
 
@@ -26,7 +64,9 @@ test_unwordSmallNames =
 
 --------------------------------------------------------------------------------
 
-
+startsWith : Char -> String -> Bool
+startsWith c str =
+  if length str == 0 then False else strHead str == c
 
 --------------------------------------------------------------------------------
 
@@ -35,3 +75,5 @@ run_tests : IO ()
 run_tests = do
   test_sumSquaresOfOdds
   test_unwordSmallNames
+  test_sumLength
+  test_sumLengthOfEveryOddStrings

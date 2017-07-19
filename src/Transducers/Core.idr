@@ -4,7 +4,7 @@ import Control.Monad.State
 
 
 --------------------------------------------------------------------------------
--- Core (definition of a step)
+-- Core (definition of steps, reducers and transducers)
 --------------------------------------------------------------------------------
 
 public export

@@ -1,0 +1,2 @@
+language: nix
+script: nix-shell -A IdrisReducers --command "idris --testpkg transducers.ipkg"

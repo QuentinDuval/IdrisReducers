@@ -1,5 +1,7 @@
 # Idris Transducers
 
+[![Build Status](https://travis-ci.org/QuentinDuval/IdrisReducers.svg?branch=master)](https://travis-ci.org/QuentinDuval/IdrisReducers)
+
 Implementation a transducer-like library in Idris, inspired by the great Clojure transducer library: https://clojure.org/reference/transducers.
 
 ## Goal & Motivation

@@ -41,8 +41,8 @@ terminal fn = MkReducer () step (const id)
   where step acc x = pure $ Continue (fn acc x)
 
 public export
-Transducer : (acc, s1, s2, inner, outer: Type) -> Type
-Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
+Transducer : (acc, s1, s2, outer, inner: Type) -> Type
+Transducer acc s1 s2 outer inner = Reducer s1 acc inner -> Reducer s2 acc outer
 
 
 --------------------------------------------------------------------------------
@@ -50,7 +50,7 @@ Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
 --------------------------------------------------------------------------------
 
 export
-statelessTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s inner outer
+statelessTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s outer inner
 statelessTransducer onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
 
 export
@@ -58,7 +58,7 @@ makeTransducer :
     s'
     -> (Step s acc inner -> Step s (s', acc) outer)
     -> (Step s acc inner -> s' -> acc -> State s acc)
-    -> Transducer acc s (s', s) inner outer
+    -> Transducer acc s (s', s) outer inner
 makeTransducer initState onStep onComplete xf =
   MkReducer (initState, state xf) stepImpl completeImpl
   where
@@ -72,7 +72,7 @@ makeTransducer initState onStep onComplete xf =
         (Continue (s2', acc)) => do put (s2', s2); pure (Continue acc)
 
 export
-statefulTransducer : s' -> (Step s acc inner -> Step s (s', acc) outer) -> Transducer acc s (s', s) inner outer
+statefulTransducer : s' -> (Step s acc inner -> Step s (s', acc) outer) -> Transducer acc s (s', s) outer inner
 statefulTransducer initState onStep = makeTransducer initState onStep onComplete
   where
     onComplete next _ acc = pure acc
@@ -102,5 +102,5 @@ reduce step acc =
     . runSteps (runStep step) acc
 
 export
-transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
+transduce : (Foldable t) => Transducer acc () s b a -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (terminal step))

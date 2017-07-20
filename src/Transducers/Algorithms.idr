@@ -9,7 +9,7 @@ import Transducers.Core
 --------------------------------------------------------------------------------
 
 export
-mapping : (outer -> inner) -> Transducer acc s s inner outer
+mapping : (outer -> inner) -> Transducer acc s s outer inner
 mapping fn = statelessTransducer $ \next, acc, outer => next acc (fn outer)
 
 export
@@ -21,7 +21,7 @@ filtering pf = statelessTransducer $
       else pure (Continue acc)
 
 export
-catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s inner outer
+catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s outer inner
 catMapping fn = statelessTransducer $
   \next, acc, outer => runSteps next acc (fn outer)
 
@@ -62,17 +62,17 @@ interspersing separator = statefulTransducer False stepImpl
       withState True <$> runSteps next acc [separator, e]
 
 export
-indexingFrom : Int -> Transducer acc s (Int, s) (Int, elem) elem
+indexingFrom : Int -> Transducer acc s (Int, s) elem (Int, elem)
 indexingFrom startIndex = statefulTransducer startIndex stepImpl
   where
     stepImpl next (n, acc) e = withState (succ n) <$> next acc (n, e)
 
 export
-indexing : Transducer acc s (Int, s) (Int, elem) elem
+indexing : Transducer acc s (Int, s) elem (Int, elem)
 indexing = indexingFrom 0
 
 export
-chunksOf : Nat -> Transducer acc s (List elem, s) (List elem) elem
+chunksOf : Nat -> Transducer acc s (List elem, s) elem (List elem)
 chunksOf chunkSize = makeTransducer [] nextChunk dumpRemaining
   where
     nextChunk next (remaining, acc) e =

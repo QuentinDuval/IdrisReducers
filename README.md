@@ -18,7 +18,7 @@ Here are some examples of transformations we can write:
     foldl (+) 0 (map (+1) (concatMap twice (filter odd [1..100])))
 
     -- Using the reducer library
-    transduce (filtering odd |> catMapping twice |> mapping (+1)) (+) 0 [1..100]
+    transduce (filtering odd . catMapping twice . mapping (+1)) (+) 0 [1..100]
 
 The above code takes as input a list of integers between 1 and 100, and:
 

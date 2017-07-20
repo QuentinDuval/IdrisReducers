@@ -46,7 +46,7 @@ should_take input =
 
 should_take_while : IO ()
 should_take_while =
-  assertEq 21 $ transduce (takingWhile (< 17)) (+) 0 [1..100]
+  assertEq 55 $ transduce (takingWhile (< 10)) (+) 0 [1..100]
 
 should_drop : List Int -> IO ()
 should_drop input =
@@ -66,6 +66,7 @@ should_allow_pure_xf_composition =
   in do
     assertEq 50 (transduce xf (+) 0 [1..100])
     assertEq 30240 (transduce xf (*) 1 [1..100])
+    assertEq 0 (transduce (mapping length . mapping fromNat . xf) (+) 0 (replicate 100 "ab"))
 
 should_index : IO ()
 should_index = do

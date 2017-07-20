@@ -41,8 +41,8 @@ terminal fn = MkReducer () step (const id)
   where step acc x = pure $ Continue (fn acc x)
 
 public export
-Transducer : (acc, s1, s2, inner, outer: Type) -> Type
-Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
+Transducer : (s1, s2, inner, outer: Type) -> Type
+Transducer s1 s2 inner outer = {acc: Type} -> Reducer s1 acc inner -> Reducer s2 acc outer
 
 
 --------------------------------------------------------------------------------
@@ -50,15 +50,15 @@ Transducer acc s1 s2 inner outer = Reducer s1 acc inner -> Reducer s2 acc outer
 --------------------------------------------------------------------------------
 
 export
-statelessTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s inner outer
-statelessTransducer onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
+statelessTransducer : ({acc : Type} -> Step s acc inner -> Step s acc outer) -> Transducer s s inner outer
+statelessTransducer onStep r = MkReducer (state r) (onStep (runStep r)) (complete r)
 
 export
 makeTransducer :
     s'
-    -> (Step s acc inner -> Step s (s', acc) outer)
-    -> (Step s acc inner -> s' -> acc -> State s acc)
-    -> Transducer acc s (s', s) inner outer
+    -> ({acc : Type} -> Step s acc inner -> Step s (s', acc) outer)
+    -> ({acc : Type} -> Step s acc inner -> s' -> acc -> State s acc)
+    -> Transducer s (s', s) inner outer
 makeTransducer initState onStep onComplete xf =
   MkReducer (initState, state xf) stepImpl completeImpl
   where
@@ -72,9 +72,10 @@ makeTransducer initState onStep onComplete xf =
         (Continue (s2', acc)) => do put (s2', s2); pure (Continue acc)
 
 export
-statefulTransducer : s' -> (Step s acc inner -> Step s (s', acc) outer) -> Transducer acc s (s', s) inner outer
+statefulTransducer : s' -> ({acc : Type} -> Step s acc inner -> Step s (s', acc) outer) -> Transducer s (s', s) inner outer
 statefulTransducer initState onStep = makeTransducer initState onStep onComplete
   where
+    onComplete : Step s acc inner -> s' -> acc -> State s acc
     onComplete next _ acc = pure acc
 
 export
@@ -102,5 +103,5 @@ reduce step acc =
     . runSteps (runStep step) acc
 
 export
-transduce : (Foldable t) => Transducer acc () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
+transduce : (Foldable t) => Transducer () s a b -> (acc -> a -> acc) -> acc -> t b -> acc
 transduce xf step = reduce (xf (terminal step))

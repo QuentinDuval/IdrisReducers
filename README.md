@@ -21,9 +21,11 @@ Here is a first example of transformations we can write:
 * Repeat these numbers twice (twice is `replicate 2`)
 * Sum the resulting stream of integer values
 
+This would look like this:
+
     -- Standard Idris (creating intermediary lists)
     foldl (+) 0 (map (+1) (concatMap twice (filter odd [1..100])))
-
+    
     -- Using the transducers
     transduce (filtering odd . catMapping twice . mapping (+1)) (+) 0 [1..100]
 

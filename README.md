@@ -12,19 +12,33 @@ The goal is to provide transformation of accumulating functions that:
 * Do not suffer from the overhead of creating intermediary lists
 * Can support arbitrary inner state (for non trivial transformations)
 
-## Example
+## Examples
 
-Here are some examples of transformations we can write:
+Here is a first example of transformations we can write:
+
+* Take a collection as input
+* Keep only the odd numbers
+* Repeat these numbers twice (twice is `replicate 2`)
+* Sum the resulting stream of integer values
 
     -- Standard Idris (creating intermediary lists)
     foldl (+) 0 (map (+1) (concatMap twice (filter odd [1..100])))
 
-    -- Using the reducer library
+    -- Using the transducers
     transduce (filtering odd . catMapping twice . mapping (+1)) (+) 0 [1..100]
 
-The above code takes as input a list of integers between 1 and 100, and:
+These transformations do not realize intermediary lists, and do not necessarily consume the entire stream of values. The stream is consumed lazily. The code below will execute much faster with transducers:
 
-* Filter the odd numbers out of it
-* Repeat of each of these number twice
-* Add one to each numbers
-* Sum them all
+    -- Standard Idris (not lazy: mapping 1000 values)
+    foldl (+) 0 (take 10 (map (+1) [1..1000]))
+
+    -- With the transducers (lazy: mapping 10 values)
+    transduce (mapping (+1) . taking 10) (+) 0 [1..1000]
+
+We can also add stateful transformations in the pipe, such as one that remove adjacent duplicated elements:
+
+    transduce (mapping singleton . deduplicate) (++) "" (unpack "abbcddccbaad")
+    > "abcdcbad"
+
+* `mapping singleton` transforms every character into a string
+* `deduplicate` removes adjacent duplicated elements

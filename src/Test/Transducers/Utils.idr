@@ -1,16 +1,26 @@
 module Test.Transducers.Utils
 
-%access export
+%access public export
 
-assertThat : Bool -> String -> IO ()
-assertThat test errorMsg = if test
-  then putStrLn "Test Passed"
-  else putStrLn $ "Test Failed: " ++ errorMsg
+Test : Type
+Test = IO Int
 
-assertEq : (Eq a, Show a) => (expected : a) -> (given : a) -> IO ()
+assertThat : Bool -> String -> Test
+assertThat test errorMsg =
+  if test
+    then do putStrLn "Test Passed"; pure 0
+    else do putStrLn ("Test Failed: " ++ errorMsg); pure 1
+
+assertEq : (Eq a, Show a) => (expected : a) -> (given : a) -> Test
 assertEq e g =
   assertThat (g == e) $
     "Expected == " ++ show e ++ ", Got: " ++ show g
+
+runTestSuite : (List Test) -> Test
+runTestSuite = foldl (\res, t => (+) <$> res <*> t) (pure 0)
+
+noReport : Test -> IO ()
+noReport test = do test; pure ()
 
 odd : Int -> Bool
 odd n = mod n 2 == 1

@@ -26,13 +26,12 @@ catMapping fn = statelessTransducer $
   \next, acc, outer => runSteps next acc (fn outer)
 
 export
-takingWhile : (elem -> Bool) -> Transducer acc s s elem elem
+takingWhile : (a -> Bool) -> Transducer acc s s a a
 takingWhile p = statelessTransducer $
-  \next, acc, elem => do
-    acc' <- next acc elem
-    if p elem
-      then pure acc'
-      else pure (Done $ unStatus acc')
+  \next, acc, a => do
+    if p a
+      then next acc a
+      else pure (Done acc)
 
 
 --------------------------------------------------------------------------------

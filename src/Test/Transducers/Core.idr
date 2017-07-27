@@ -46,7 +46,7 @@ should_take input =
 
 should_take_while : Test
 should_take_while =
-  assertEq 55 $ transduce (takingWhile (< 10)) (+) 0 [1..100]
+  assertEq 55 $ transduce (takingWhile (<= 10)) (+) 0 [1..100]
 
 should_drop : List Int -> Test
 should_drop input =

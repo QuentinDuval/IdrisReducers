@@ -91,14 +91,13 @@ should_deduplicate = do
 should_group_by : Test
 should_group_by =
   assertEq ["aa", "b", "ccc", "b"] $
-    reverse $
-      transduce (groupBy (==) . mapping pack) conj [] (unpack "aabcccb")
+    reverse $ into [] (groupBy (==) . mapping pack) (unpack "aabcccb")
 
 
 should_support_isomorphisms : Test
 should_support_isomorphisms =
   assertEq "ei" $
-    transduce (under (MkIso ord chr) (mapping (+1)) . filtering vowel) conj "" (unpack "abcdefgh")
+    into "" (under (MkIso ord chr) (mapping (+1)) . filtering vowel) (unpack "abcdefgh")
 
 export
 run_tests : IO ()

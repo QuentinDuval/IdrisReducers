@@ -1,5 +1,7 @@
 module Transducers.Utils
 
+import Transducers.Core
+
 
 --------------------------------------------------------------------------------
 -- Utils to conjoin elements to a container
@@ -22,4 +24,6 @@ implementation Conj String Char where
 -- Utils to conjoin the result of a transduce into a container
 --------------------------------------------------------------------------------
 
--- TODO
+export
+into : (Foldable t, Conj acc a) => acc -> Transducer acc () s b a -> t b -> acc
+into acc xf = transduce xf conj acc

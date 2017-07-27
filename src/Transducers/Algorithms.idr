@@ -93,3 +93,18 @@ deduplicate = statefulTransducer Nothing stepImpl
       if oldVal == Just e
         then pure $ Continue (oldVal, acc)
         else withState (Just e) <$> next acc e
+
+
+--------------------------------------------------------------------------------
+-- Higher order transducers
+--------------------------------------------------------------------------------
+
+public export
+record Iso a b where
+  constructor MkIso
+  toIso : a -> b
+  fromIso : b -> a
+
+export
+under : Iso a b -> Transducer acc s1 s2 b b -> Transducer acc s1 s2 a a
+under iso xf = mapping (toIso iso) . xf . mapping (fromIso iso)

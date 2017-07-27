@@ -88,6 +88,10 @@ should_deduplicate : Test
 should_deduplicate = do
   assertEq "abcdcbad" $ transduce (mapping singleton . deduplicate) (++) "" (unpack "abbcddccbaad")
 
+should_support_isomorphisms : Test
+should_support_isomorphisms = do
+  assertEq "" "todo"
+
 export
 run_tests : IO ()
 run_tests =
@@ -105,4 +109,5 @@ run_tests =
     should_index,
     should_chunk_of,
     should_intersperse,
-    should_deduplicate]
+    should_deduplicate,
+    should_support_isomorphisms]

@@ -90,7 +90,8 @@ should_deduplicate = do
 
 should_support_isomorphisms : Test
 should_support_isomorphisms = do
-  assertEq "" "todo"
+  assertEq "bcdefghi" $
+    transduce (under (MkIso ord chr) (mapping (+1)) . mapping singleton) (++) "" (unpack "abcdefgh")
 
 export
 run_tests : IO ()

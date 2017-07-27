@@ -88,6 +88,13 @@ should_deduplicate : Test
 should_deduplicate = do
   assertEq "abcdcbad" $ transduce (mapping singleton . deduplicate) (++) "" (unpack "abbcddccbaad")
 
+should_group_by : Test
+should_group_by =
+  assertEq ["aa", "b", "ccc", "b"] $
+    reverse $
+      transduce (groupBy (==) . mapping pack) (flip (::)) [] (unpack "aabcccb")
+
+
 should_support_isomorphisms : Test
 should_support_isomorphisms =
   assertEq "ei" $ reverse $
@@ -111,4 +118,5 @@ run_tests =
     should_chunk_of,
     should_intersperse,
     should_deduplicate,
+    should_group_by,
     should_support_isomorphisms]

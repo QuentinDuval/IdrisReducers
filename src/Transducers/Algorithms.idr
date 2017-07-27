@@ -80,7 +80,7 @@ chunksOf chunkSize = makeTransducer [] nextChunk dumpRemaining
         then withState [] <$> next acc (reverse remaining')
         else pure $ Continue (remaining', acc)
     dumpRemaining next remaining acc =
-      if length remaining == 0
+      if isNil remaining
         then pure acc
         else unStatus <$> next acc (reverse remaining)
 
@@ -92,6 +92,21 @@ deduplicate = statefulTransducer Nothing stepImpl
       if oldVal == Just e
         then pure $ Continue (oldVal, acc)
         else withState (Just e) <$> next acc e
+
+export
+groupBy : (a -> a -> Bool) -> Transducer acc s (List a, s) a (List a)
+groupBy sameGroup = makeTransducer [] stepImpl dumpRemaining
+  where
+    stepImpl next (previousVals, acc) e =
+      case nonEmpty previousVals of
+        No _ => pure $ Continue ([e], acc)
+        Yes _ => if sameGroup e (head previousVals)
+          then pure $ Continue (e :: previousVals, acc)
+          else withState [e] <$> next acc (reverse previousVals)
+    dumpRemaining next remaining acc =
+      if isNil remaining
+        then pure acc
+        else unStatus <$> next acc (reverse remaining)
 
 
 --------------------------------------------------------------------------------

@@ -30,3 +30,6 @@ odd n = mod n 2 == 1
 
 twice : Int -> List Int
 twice = replicate 2
+
+vowel : Char -> Bool
+vowel c = c `elem` (unpack "aeiou")

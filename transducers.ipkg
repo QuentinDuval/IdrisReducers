@@ -3,9 +3,12 @@ package transducers
 sourcedir = src
 
 modules = Transducers
+        , Transducers.Algorithms
         , Transducers.Core
+        , Transducers.Utils
         , Test.Transducers.Core
         , Test.Transducers.Examples
+        , Test.Transducers.Utils
 
 tests = Test.Transducers.Core.run_tests
       , Test.Transducers.Examples.run_tests

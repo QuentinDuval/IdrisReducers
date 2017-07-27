@@ -92,13 +92,13 @@ should_group_by : Test
 should_group_by =
   assertEq ["aa", "b", "ccc", "b"] $
     reverse $
-      transduce (groupBy (==) . mapping pack) (flip (::)) [] (unpack "aabcccb")
+      transduce (groupBy (==) . mapping pack) conj [] (unpack "aabcccb")
 
 
 should_support_isomorphisms : Test
 should_support_isomorphisms =
-  assertEq "ei" $ reverse $
-    transduce (under (MkIso ord chr) (mapping (+1)) . filtering vowel) (flip strCons) "" (unpack "abcdefgh")
+  assertEq "ei" $
+    transduce (under (MkIso ord chr) (mapping (+1)) . filtering vowel) conj "" (unpack "abcdefgh")
 
 export
 run_tests : IO ()

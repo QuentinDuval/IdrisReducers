@@ -91,7 +91,7 @@ should_deduplicate = do
 export
 run_tests : IO ()
 run_tests =
-  noReport $ runTestSuite [
+  runTestSuite [
     should_map [1..100],
     should_follow_map_law,
     should_filter [1..100],

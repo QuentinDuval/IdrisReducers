@@ -1,5 +1,7 @@
 module Test.Transducers.Utils
 
+import System
+
 %access public export
 
 Test : Type
@@ -16,11 +18,12 @@ assertEq e g =
   assertThat (g == e) $
     "Expected == " ++ show e ++ ", Got: " ++ show g
 
-runTestSuite : (List Test) -> Test
-runTestSuite = foldl (\res, t => (+) <$> res <*> t) (pure 0)
-
-noReport : Test -> IO ()
-noReport test = do test; pure ()
+runTestSuite : List Test -> IO ()
+runTestSuite tests = do
+  failedCount <- foldl (\res, t => (+) <$> res <*> t) (pure 0) tests
+  if failedCount > 0
+    then exitFailure
+    else pure ()
 
 odd : Int -> Bool
 odd n = mod n 2 == 1

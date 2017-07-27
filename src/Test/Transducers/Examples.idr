@@ -73,7 +73,7 @@ startsWith c str =
 export
 run_tests : IO ()
 run_tests =
-  noReport $ runTestSuite [
+  runTestSuite [
     test_sumSquaresOfOdds,
     test_unwordSmallNames,
     test_sumLength,

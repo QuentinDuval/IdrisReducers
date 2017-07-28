@@ -8,9 +8,16 @@ Implementation a transducer-like library in Idris, inspired by the great Clojure
 
 The goal is to provide transformation of accumulating functions that:
 
-* Can be composed together as transformation pipe
+* Can be composed together as pipe-lines of transformations
 * Do not suffer from the overhead of creating intermediary lists
 * Can support arbitrary inner state (for non trivial transformations)
+
+## Documentation
+
+The main concepts and their associated types are introduced in this blog post. This should help you understand what transducers are and how to build you own:
+https://deque.blog/2017/07/28/implementing-clojure-like-transducers-in-idris-part-1/
+
+Further articles are coming to explain how to build more complex transducers.
 
 ## Examples
 
@@ -25,7 +32,7 @@ This would look like this:
 
     -- Standard Idris (creating intermediary lists)
     foldl (+) 0 (map (+1) (concatMap twice (filter odd [1..100])))
-    
+
     -- Using the transducers
     transduce (filtering odd . catMapping twice . mapping (+1)) (+) 0 [1..100]
 

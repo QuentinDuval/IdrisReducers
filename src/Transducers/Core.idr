@@ -50,15 +50,16 @@ Transducer acc s1 s2 outer inner = Reducer s1 acc inner -> Reducer s2 acc outer
 --------------------------------------------------------------------------------
 
 export
-statelessTransducer : (Step s acc inner -> Step s acc outer) -> Transducer acc s s outer inner
-statelessTransducer onStep xf = MkReducer (state xf) (onStep (runStep xf)) (complete xf)
+statelessTransducer : (Step s acc b -> Step s acc a) -> Transducer acc s s a b
+statelessTransducer onStep next =
+  MkReducer (state next) (onStep (runStep next)) (complete next)
 
 export
 makeTransducer :
     s'
-    -> (Step s acc inner -> Step s (s', acc) outer)
-    -> (Step s acc inner -> s' -> acc -> State s acc)
-    -> Transducer acc s (s', s) outer inner
+    -> (Step s acc b -> Step s (s', acc) a)
+    -> (Step s acc b -> s' -> acc -> State s acc)
+    -> Transducer acc s (s', s) a b
 makeTransducer initState onStep onComplete xf =
   MkReducer (initState, state xf) stepImpl completeImpl
   where
@@ -68,11 +69,11 @@ makeTransducer initState onStep onComplete xf =
       (s1', s1) <- get
       let (result, s2) = runState (onStep (runStep xf) (s1', acc) elem) s1
       case result of
-        (Done (s2', acc)) => do put (s2', s2); pure (Done acc)
-        (Continue (s2', acc)) => do put (s2', s2); pure (Continue acc)
+        Done (s2', acc) => do put (s2', s2); pure (Done acc)
+        Continue (s2', acc) => do put (s2', s2); pure (Continue acc)
 
 export
-statefulTransducer : s' -> (Step s acc inner -> Step s (s', acc) outer) -> Transducer acc s (s', s) outer inner
+statefulTransducer : s' -> (Step s acc b -> Step s (s', acc) a) -> Transducer acc s (s', s) a b
 statefulTransducer initState onStep = makeTransducer initState onStep onComplete
   where
     onComplete next _ acc = pure acc

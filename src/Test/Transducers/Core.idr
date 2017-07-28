@@ -93,6 +93,11 @@ should_group_by =
   assertEq ["aa", "b", "ccc", "b"] $
     reverse $ into [] (groupingBy (==) . mapping pack) (unpack "aabcccb")
 
+should_group_by_with_custom_predicate : Test
+should_group_by_with_custom_predicate =
+  assertEq 3 $ longestIncreasingSeq [1, 2, 1, 3, 4, 1, 5, 3, 4]
+  where
+    longestIncreasingSeq = transduce (groupingBy (<) . mapping length . mapping fromNat) max 0
 
 should_support_isomorphisms : Test
 should_support_isomorphisms =
@@ -118,4 +123,5 @@ run_tests =
     should_intersperse,
     should_deduplicate,
     should_group_by,
+    should_group_by_with_custom_predicate,
     should_support_isomorphisms]

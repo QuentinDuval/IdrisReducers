@@ -18,9 +18,12 @@ assertEq e g =
   assertThat (g == e) $
     "Expected == " ++ show e ++ ", Got: " ++ show g
 
+runTests : List Test -> Test
+runTests = foldl (\res, t => (+) <$> res <*> t) (pure 0)
+
 runTestSuite : List Test -> IO ()
 runTestSuite tests = do
-  failedCount <- foldl (\res, t => (+) <$> res <*> t) (pure 0) tests
+  failedCount <- runTests tests
   if failedCount > 0
     then exitFailure
     else pure ()

@@ -100,7 +100,7 @@ groupingBy sameGroup = makeTransducer [] stepImpl dumpRemaining
     stepImpl next (previousVals, acc) a =
       case nonEmpty previousVals of
         No _ => pure $ Continue ([a], acc)
-        Yes _ => if sameGroup a (head previousVals)
+        Yes _ => if sameGroup (head previousVals) a -- Maintain stable order
           then pure $ Continue (a :: previousVals, acc)
           else withState [a] <$> next acc (reverse previousVals)
     dumpRemaining next remaining acc =

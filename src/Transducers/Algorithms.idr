@@ -9,21 +9,21 @@ import Transducers.Core
 --------------------------------------------------------------------------------
 
 export
-mapping : (outer -> inner) -> Transducer acc s s outer inner
+mapping : (a -> b) -> Transducer acc s s a b
 mapping fn = statelessTransducer $ \next, acc, outer => next acc (fn outer)
 
 export
-filtering : (elem -> Bool) -> Transducer acc s s elem elem
+filtering : (a -> Bool) -> Transducer acc s s a a
 filtering pf = statelessTransducer $
-  \next, acc, elem =>
-    if pf elem
-      then next acc elem
+  \next, acc, a =>
+    if pf a
+      then next acc a
       else pure (Continue acc)
 
 export
-catMapping : (Foldable t) => (outer -> t inner) -> Transducer acc s s outer inner
+catMapping : (Foldable t) => (a -> t b) -> Transducer acc s s a b
 catMapping fn = statelessTransducer $
-  \next, acc, outer => runSteps next acc (fn outer)
+  \next, acc, a => runSteps next acc (fn a)
 
 export
 takingWhile : (a -> Bool) -> Transducer acc s s a a
@@ -39,21 +39,21 @@ takingWhile p = statelessTransducer $
 --------------------------------------------------------------------------------
 
 export
-dropping : Nat -> Transducer acc s (Nat, s) elem elem
+dropping : Nat -> Transducer acc s (Nat, s) a a
 dropping n = statefulTransducer n dropImpl
   where
     dropImpl next (S n, acc) e = pure $ Continue (n, acc)
     dropImpl next (Z, acc) e = withState Z <$> next acc e
 
 export
-taking : Nat -> Transducer acc s (Nat, s) elem elem
+taking : Nat -> Transducer acc s (Nat, s) a a
 taking n = statefulTransducer n takeImpl
   where
     takeImpl next (Z, acc) e = pure (Done (Z, acc))
     takeImpl next (n, acc) e = withState (pred n) <$> next acc e
 
 export
-interspersing : elem -> Transducer acc s (Bool, s) elem elem
+interspersing : a -> Transducer acc s (Bool, s) a a
 interspersing separator = statefulTransducer False stepImpl
   where
     stepImpl next (False, acc) e = withState True <$> next acc e
@@ -61,17 +61,17 @@ interspersing separator = statefulTransducer False stepImpl
       withState True <$> runSteps next acc [separator, e]
 
 export
-indexingFrom : Int -> Transducer acc s (Int, s) elem (Int, elem)
+indexingFrom : Int -> Transducer acc s (Int, s) a (Int, a)
 indexingFrom startIndex = statefulTransducer startIndex stepImpl
   where
     stepImpl next (n, acc) e = withState (succ n) <$> next acc (n, e)
 
 export
-indexing : Transducer acc s (Int, s) elem (Int, elem)
+indexing : Transducer acc s (Int, s) a (Int, a)
 indexing = indexingFrom 0
 
 export
-chunksOf : Nat -> Transducer acc s (List elem, s) elem (List elem)
+chunksOf : Nat -> Transducer acc s (List a, s) a (List a)
 chunksOf chunkSize = makeTransducer [] nextChunk dumpRemaining
   where
     nextChunk next (remaining, acc) e =
@@ -85,7 +85,7 @@ chunksOf chunkSize = makeTransducer [] nextChunk dumpRemaining
         else unStatus <$> next acc (reverse remaining)
 
 export
-deduplicate : (Eq elem) => Transducer acc s (Maybe elem, s) elem elem
+deduplicate : (Eq a) => Transducer acc s (Maybe a, s) a a
 deduplicate = statefulTransducer Nothing stepImpl
   where
     stepImpl next (oldVal, acc) e =

@@ -42,29 +42,29 @@ export
 dropping : Nat -> Transducer acc s (Nat, s) a a
 dropping n = statefulTransducer n dropImpl
   where
-    dropImpl next (S n, acc) e = pure $ Continue (n, acc)
-    dropImpl next (Z, acc) e = withState Z <$> next acc e
+    dropImpl next (S n, acc) _ = pure $ Continue (n, acc)
+    dropImpl next (Z, acc) a = withState Z <$> next acc a
 
 export
 taking : Nat -> Transducer acc s (Nat, s) a a
 taking n = statefulTransducer n takeImpl
   where
-    takeImpl next (Z, acc) e = pure (Done (Z, acc))
-    takeImpl next (n, acc) e = withState (pred n) <$> next acc e
+    takeImpl next (Z, acc) a = pure (Done (Z, acc))
+    takeImpl next (n, acc) a = withState (pred n) <$> next acc a
 
 export
 interspersing : a -> Transducer acc s (Bool, s) a a
 interspersing separator = statefulTransducer False stepImpl
   where
-    stepImpl next (False, acc) e = withState True <$> next acc e
-    stepImpl next (True, acc) e =
-      withState True <$> runSteps next acc [separator, e]
+    stepImpl next (False, acc) a = withState True <$> next acc a
+    stepImpl next (True, acc) a =
+      withState True <$> runSteps next acc [separator, a]
 
 export
 indexingFrom : Int -> Transducer acc s (Int, s) a (Int, a)
 indexingFrom startIndex = statefulTransducer startIndex stepImpl
   where
-    stepImpl next (n, acc) e = withState (succ n) <$> next acc (n, e)
+    stepImpl next (n, acc) a = withState (succ n) <$> next acc (n, a)
 
 export
 indexing : Transducer acc s (Int, s) a (Int, a)
@@ -74,8 +74,8 @@ export
 chunksOf : Nat -> Transducer acc s (List a, s) a (List a)
 chunksOf chunkSize = makeTransducer [] nextChunk dumpRemaining
   where
-    nextChunk next (remaining, acc) e =
-      let remaining' = e :: remaining in
+    nextChunk next (remaining, acc) a =
+      let remaining' = a :: remaining in
       if length remaining' == chunkSize
         then withState [] <$> next acc (reverse remaining')
         else pure $ Continue (remaining', acc)
@@ -88,21 +88,21 @@ export
 deduplicate : (Eq a) => Transducer acc s (Maybe a, s) a a
 deduplicate = statefulTransducer Nothing stepImpl
   where
-    stepImpl next (oldVal, acc) e =
-      if oldVal == Just e
+    stepImpl next (oldVal, acc) a =
+      if oldVal == Just a
         then pure $ Continue (oldVal, acc)
-        else withState (Just e) <$> next acc e
+        else withState (Just a) <$> next acc a
 
 export
 groupingBy : (a -> a -> Bool) -> Transducer acc s (List a, s) a (List a)
 groupingBy sameGroup = makeTransducer [] stepImpl dumpRemaining
   where
-    stepImpl next (previousVals, acc) e =
+    stepImpl next (previousVals, acc) a =
       case nonEmpty previousVals of
-        No _ => pure $ Continue ([e], acc)
-        Yes _ => if sameGroup e (head previousVals)
-          then pure $ Continue (e :: previousVals, acc)
-          else withState [e] <$> next acc (reverse previousVals)
+        No _ => pure $ Continue ([a], acc)
+        Yes _ => if sameGroup a (head previousVals)
+          then pure $ Continue (a :: previousVals, acc)
+          else withState [a] <$> next acc (reverse previousVals)
     dumpRemaining next remaining acc =
       if isNil remaining
         then pure acc

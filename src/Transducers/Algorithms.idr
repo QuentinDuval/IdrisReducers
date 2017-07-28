@@ -94,8 +94,8 @@ deduplicate = statefulTransducer Nothing stepImpl
         else withState (Just e) <$> next acc e
 
 export
-groupBy : (a -> a -> Bool) -> Transducer acc s (List a, s) a (List a)
-groupBy sameGroup = makeTransducer [] stepImpl dumpRemaining
+groupingBy : (a -> a -> Bool) -> Transducer acc s (List a, s) a (List a)
+groupingBy sameGroup = makeTransducer [] stepImpl dumpRemaining
   where
     stepImpl next (previousVals, acc) e =
       case nonEmpty previousVals of

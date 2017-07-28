@@ -91,7 +91,7 @@ should_deduplicate = do
 should_group_by : Test
 should_group_by =
   assertEq ["aa", "b", "ccc", "b"] $
-    reverse $ into [] (groupBy (==) . mapping pack) (unpack "aabcccb")
+    reverse $ into [] (groupingBy (==) . mapping pack) (unpack "aabcccb")
 
 
 should_support_isomorphisms : Test
